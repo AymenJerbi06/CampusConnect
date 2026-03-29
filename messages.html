@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Messages — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="cc-page">
+
+    <header class="cc-header">
+      <div class="cc-header-logo">
+        <div class="cc-logo-mark">CC</div>
+        <span>Messages</span>
+      </div>
+    </header>
+
+    <div class="cc-page-inner" style="overflow-y:auto; padding-bottom:calc(64px + 16px);">
+      <div id="convList" style="padding:8px 0;">
+        <div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="cc-tab-bar">
+      <a href="/home.html" class="cc-tab-item" aria-label="Explore">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <span>Explore</span>
+      </a>
+      <a href="/inbox.html" class="cc-tab-item" aria-label="Friends">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>
+          <span class="cc-nav-badge" id="friendsBadge" style="display:none;"></span>
+        </span>
+        <span>Friends</span>
+      </a>
+      <a href="/study.html" class="cc-tab-item" aria-label="Study">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </span>
+        <span>Study</span>
+      </a>
+      <a href="/messages.html" class="cc-tab-item active" aria-label="Messages">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="cc-nav-badge" id="messagesBadge" style="display:none;"></span>
+        </span>
+        <span>Messages</span>
+      </a>
+      <a href="/my-profile.html" class="cc-tab-item" aria-label="Profile">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <span>Profile</span>
+      </a>
+    </nav>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/presence.js"></script>
+  <script src="/js/badges.js"></script>
+  <script>
+    let meId = null;
+
+    (async () => {
+      const res  = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await res.json();
+      if (!data.authenticated) { window.location.href = '/'; return; }
+      meId = data.user.id;
+      await loadConversations();
+      refreshBadges();
+
+      // Real-time: refresh list when a new message arrives or friendship changes
+      const socket = io({ withCredentials: true });
+      socket.on('message:notify', () => {
+        loadConversations();
+        refreshBadges();
+      });
+      socket.on('friend:removed', () => {
+        loadConversations();
+        refreshBadges();
+      });
+    })();
+
+    async function loadConversations() {
+      const list = document.getElementById('convList');
+      try {
+        const res  = await fetch('/api/messages', { credentials: 'include' });
+        const convs = await res.json();
+
+        if (!convs.length) {
+          list.innerHTML = '<div style="padding:48px 24px;text-align:center;color:var(--muted);font-size:14px;">No messages yet — add friends and start chatting!</div>';
+          return;
+        }
+
+        list.innerHTML = '';
+        convs.forEach(c => {
+          const initial   = (c.name || '?')[0].toUpperCase();
+          const photoHtml = c.photo_url
+            ? `<img src="${c.photo_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />`
+            : '';
+          const isMe   = c.last_sender_id === meId;
+          const unread = parseInt(c.unread_count) || 0;
+          const preview = c.last_message
+            ? (isMe ? 'You: ' : '') + escHtml(c.last_message).slice(0, 60)
+            : 'No messages yet';
+
+          const item    = document.createElement('a');
+          item.href     = `/chat.html?id=${c.other_id}`;
+          item.className = 'cc-conv-item';
+          item.innerHTML = `
+            <div class="cc-avatar" style="position:relative;flex-shrink:0;">${initial}${photoHtml}</div>
+            <div class="cc-conv-info">
+              <div class="cc-conv-name" style="${unread > 0 ? 'font-weight:800;' : ''}">${escHtml(c.name || 'Student')}</div>
+              <div class="cc-conv-preview" style="${unread > 0 ? 'color:var(--text);font-weight:600;' : ''}">${preview}</div>
+            </div>
+            ${unread > 0 ? `<span class="cc-unread-dot">${unread > 9 ? '9+' : unread}</span>` : ''}
+          `;
+          list.appendChild(item);
+        });
+      } catch (e) {
+        list.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">Failed to load. Try refreshing.</div>';
+      }
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>

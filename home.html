@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explore — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .tab-panels > div { display: none; }
+    .tab-panels > div.active { display: block; }
+
+    /* Campus selector button */
+    .cc-campus-btn { display:flex;align-items:center;gap:5px;padding:6px 12px;background:rgba(200,168,64,.12);border:1px solid rgba(200,168,64,.3);border-radius:50px;color:var(--accent);font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;transition:background .18s; }
+    .cc-campus-btn:hover { background:rgba(200,168,64,.22); }
+    .cc-campus-btn svg { width:12px;height:12px;stroke:var(--accent);flex-shrink:0; }
+
+    /* Campus modal overlay + sheet */
+    .cc-campus-overlay { position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;display:none;align-items:flex-end;justify-content:center; }
+    .cc-campus-overlay.open { display:flex; }
+    .cc-campus-sheet { width:100%;max-width:430px;background:var(--surface);border-top-left-radius:20px;border-top-right-radius:20px;padding:20px 20px 40px; }
+    .cc-campus-title { font-family:var(--font-head);font-weight:700;font-size:16px;color:var(--text);margin-bottom:16px; }
+    .cc-campus-row { display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);cursor:pointer; }
+    .cc-campus-row:last-of-type { border-bottom:none; }
+    .cc-campus-row.active { background:rgba(200,168,64,.06);border-radius:10px;padding:14px 8px;margin:0 -8px; }
+    .cc-campus-info { flex:1; }
+    .cc-campus-name { font-weight:700;font-size:15px;color:var(--text); }
+    .cc-campus-name.locked-name { color:var(--muted); }
+    .cc-campus-fullname { font-size:12px;color:var(--muted);margin-top:2px; }
+    .cc-campus-lock { display:flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px 8px;font-size:11px;font-weight:700;color:var(--muted); }
+    .cc-campus-check svg { width:18px;height:18px;stroke:var(--accent); }
+    .cc-campus-close { width:100%;margin-top:20px;padding:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--muted);font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="cc-page">
+
+    <!-- Header -->
+    <header class="cc-header">
+      <div class="cc-header-logo">
+        <div class="cc-logo-mark">CC</div>
+        <span>CampusConnect</span>
+      </div>
+      <div class="cc-header-actions" style="display:flex;align-items:center;gap:8px;">
+        <button class="cc-campus-btn" id="campusBtn" style="display:none;" onclick="openCampusModal()">
+          <span id="campusBtnLabel">…</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <a href="/my-profile.html" id="avatarBtn" class="cc-avatar" style="text-decoration:none;cursor:pointer;border-color:var(--accent);">
+          <span id="avatarInitial">?</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Search -->
+    <div class="cc-search-wrap">
+      <div class="cc-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="search" class="cc-input" id="searchInput" placeholder="Search students, courses…" />
+      </div>
+    </div>
+
+    <!-- Inner tabs -->
+    <div class="cc-inner-tabs" id="mainTabs">
+      <button class="cc-inner-tab active" data-tab="major">By Major</button>
+      <button class="cc-inner-tab" data-tab="course">By Course</button>
+      <button class="cc-inner-tab" data-tab="year">By Year</button>
+      <button class="cc-inner-tab" data-tab="communities">Communities</button>
+      <button class="cc-inner-tab" data-tab="gender" id="tabGender" style="display:none;">By Gender</button>
+    </div>
+
+    <!-- Tab Panels -->
+    <div class="cc-page-inner" style="overflow-y:auto; padding-bottom: calc(64px + 16px);">
+      <div class="tab-panels">
+
+        <!-- BY MAJOR -->
+        <div id="panel-major" class="active">
+          <div class="cc-pills-row" id="majorPills"></div>
+          <div class="cc-grid-2" id="majorGrid">
+            <div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>
+            <div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>
+            <div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>
+            <div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>
+          </div>
+        </div>
+
+        <!-- BY COURSE -->
+        <div id="panel-course">
+          <div class="cc-pills-row" id="termPills"></div>
+          <div id="courseList" style="background:var(--surface);margin:0 16px;border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden;">
+            <div style="padding:32px;text-align:center;color:var(--muted);font-size:14px;">Loading courses…</div>
+          </div>
+        </div>
+
+        <!-- BY YEAR -->
+        <div id="panel-year">
+          <div class="cc-pills-row" id="yearPills"></div>
+          <div class="cc-grid-2" id="yearGrid">
+            <div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>
+            <div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>
+            <div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>
+            <div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>
+          </div>
+        </div>
+
+        <!-- COMMUNITIES -->
+        <div id="panel-communities">
+          <div class="cc-pills-row" id="regionPills"></div>
+          <div class="cc-grid-2" id="communitiesGrid">
+            <div class="cc-skeleton" style="height:120px;border-radius:16px;"></div>
+            <div class="cc-skeleton" style="height:120px;border-radius:16px;"></div>
+            <div class="cc-skeleton" style="height:120px;border-radius:16px;"></div>
+            <div class="cc-skeleton" style="height:120px;border-radius:16px;"></div>
+          </div>
+        </div>
+
+        <!-- BY GENDER (premium only) -->
+        <div id="panel-gender">
+          <div class="cc-pills-row" id="genderPills"></div>
+          <div class="cc-grid-2" id="genderGrid">
+            <div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>
+            <div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="cc-tab-bar">
+      <a href="/home.html" class="cc-tab-item active" aria-label="Explore">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <span>Explore</span>
+      </a>
+      <a href="/inbox.html" class="cc-tab-item" aria-label="Friends">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>
+          <span class="cc-nav-badge" id="friendsBadge" style="display:none;"></span>
+        </span>
+        <span>Friends</span>
+      </a>
+      <a href="/study.html" class="cc-tab-item" aria-label="Study">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </span>
+        <span>Study</span>
+      </a>
+      <a href="/messages.html" class="cc-tab-item" aria-label="Messages">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="cc-nav-badge" id="messagesBadge" style="display:none;"></span>
+        </span>
+        <span>Messages</span>
+      </a>
+      <a href="/my-profile.html" class="cc-tab-item" aria-label="Profile">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <span>Profile</span>
+      </a>
+    </nav>
+
+  </div>
+
+  <!-- Campus selector modal -->
+  <div class="cc-campus-overlay" id="campusOverlay" onclick="if(event.target===this)closeCampusModal()">
+    <div class="cc-campus-sheet">
+      <div class="cc-campus-title">Select Campus</div>
+      <div id="campusModalList"></div>
+      <button class="cc-campus-close" onclick="closeCampusModal()">Close</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/presence.js"></script>
+  <script src="/js/badges.js"></script>
+  <script>
+    // Auth guard
+    let currentUser    = null;
+    let isPremium      = false;
+    let isCrossCampus  = false;
+    let universities   = [];
+    let selectedUniId  = parseInt(sessionStorage.getItem('cc_selectedUniId')) || null;
+
+    (async () => {
+      const res  = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await res.json();
+      if (!data.authenticated) { window.location.href = '/'; return; }
+      currentUser   = data.user;
+      isPremium     = data.user.plan === 'premium' || data.user.plan === 'cross_campus';
+      isCrossCampus = data.user.plan === 'cross_campus';
+      refreshBadges();
+      const initial = (data.user.name || data.user.email || '?')[0].toUpperCase();
+      document.getElementById('avatarInitial').textContent = initial;
+      if (data.user.photo_url) {
+        const avatarBtn = document.getElementById('avatarBtn');
+        avatarBtn.innerHTML = `<img src="${data.user.photo_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+      }
+      // Reveal the premium-only By Gender tab and build its pills
+      if (isPremium) {
+        document.getElementById('tabGender').style.display = '';
+        panels.gender = document.getElementById('panel-gender');
+        buildGenderPills();
+      }
+      // Load universities and show campus button for cross_campus users
+      await loadUniversities();
+      // Build pills after user data is available (needed for plan-based locking)
+      buildMajorPills();
+      buildYearPills();
+      loadMajorStudents();
+    })();
+
+    // ── Campus selector ──────────────────────────────────────────────────────
+    async function loadUniversities() {
+      try {
+        const res = await fetch('/api/universities', { credentials: 'include' });
+        universities = await res.json();
+        if (Array.isArray(universities) && universities.length) {
+          updateCampusBtn();
+          // Always show campus button (free users see it grayed-out/locked)
+          document.getElementById('campusBtn').style.display = '';
+        }
+        // Cache for other pages
+        sessionStorage.setItem('cc_universities', JSON.stringify(universities));
+      } catch (e) {}
+    }
+
+    function updateCampusBtn() {
+      if (!universities.length || !currentUser) return;
+      const activId = selectedUniId || currentUser.university_id;
+      const uni     = universities.find(u => u.id === activId);
+      document.getElementById('campusBtnLabel').textContent = uni ? uni.short_name : '…';
+    }
+
+    function openCampusModal() {
+      const list = document.getElementById('campusModalList');
+      list.innerHTML = '';
+      const homeId  = currentUser.university_id;
+      const activeId = selectedUniId || homeId;
+
+      universities.forEach(uni => {
+        const isHome   = uni.id === homeId;
+        const isActive = uni.id === activeId;
+        const isLocked = !isHome && !isCrossCampus;
+
+        const row = document.createElement('div');
+        row.className = 'cc-campus-row' + (isActive ? ' active' : '');
+
+        const checkHtml = isActive
+          ? `<span class="cc-campus-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>`
+          : '';
+        const rightHtml = isLocked
+          ? `<span class="cc-campus-lock">🔒 $29.99</span>`
+          : checkHtml;
+
+        row.innerHTML = `
+          <div class="cc-campus-info">
+            <div class="cc-campus-name ${isLocked ? 'locked-name' : ''}">${uni.short_name}</div>
+            <div class="cc-campus-fullname">${uni.name}</div>
+          </div>
+          ${rightHtml}
+        `;
+
+        row.addEventListener('click', () => {
+          if (isLocked) {
+            closeCampusModal();
+            window.location.href = '/upgrade.html';
+            return;
+          }
+          selectedUniId = isHome ? null : uni.id;
+          if (selectedUniId) sessionStorage.setItem('cc_selectedUniId', selectedUniId);
+          else               sessionStorage.removeItem('cc_selectedUniId');
+          // Reset loaded flags so data reloads for new campus
+          majorLoaded = yearLoaded = coursesLoaded = commLoaded = genderLoaded = false;
+          updateCampusBtn();
+          closeCampusModal();
+          // Reload current tab
+          if      (activeTab === 'major')       loadMajorStudents();
+          else if (activeTab === 'year')        loadYearStudents();
+          else if (activeTab === 'course')      loadCourses();
+          else if (activeTab === 'communities') loadCommunities();
+          else if (activeTab === 'gender')      loadGenderStudents();
+        });
+
+        list.appendChild(row);
+      });
+
+      document.getElementById('campusOverlay').classList.add('open');
+    }
+
+    function closeCampusModal() {
+      document.getElementById('campusOverlay').classList.remove('open');
+    }
+
+    // Helper: returns extra query param for cross-campus users
+    function uniParam() {
+      if (isCrossCampus && selectedUniId && selectedUniId !== currentUser.university_id) {
+        return `&uniId=${selectedUniId}`;
+      }
+      return '';
+    }
+
+    // Tab switching
+    const tabs   = document.querySelectorAll('.cc-inner-tab');
+    const panels = {
+      major:       document.getElementById('panel-major'),
+      course:      document.getElementById('panel-course'),
+      year:        document.getElementById('panel-year'),
+      communities: document.getElementById('panel-communities'),
+      // gender panel added dynamically after auth resolves (premium only)
+    };
+    let activeTab = 'major';
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const key = tab.dataset.tab;
+        activateTabKey(key);
+        if (key === 'major'       && !majorLoaded)   loadMajorStudents();
+        if (key === 'course'      && !coursesLoaded) loadCourses();
+        if (key === 'year'        && !yearLoaded)    loadYearStudents();
+        if (key === 'communities' && !commLoaded)    loadCommunities();
+        if (key === 'gender'      && !genderLoaded)  loadGenderStudents();
+      });
+    });
+
+    // Activate a tab by key — used by click handler and hash nav
+    function activateTabKey(key) {
+      tabs.forEach(t => t.classList.remove('active'));
+      const tabEl = document.querySelector(`.cc-inner-tab[data-tab="${key}"]`);
+      if (tabEl) tabEl.classList.add('active');
+      Object.values(panels).forEach(p => p && p.classList.remove('active'));
+      if (panels[key]) panels[key].classList.add('active');
+      activeTab = key;
+    }
+
+    function handleHash() {
+      const hash = window.location.hash;
+      if      (hash === '#course')      { activateTabKey('course');      if (!coursesLoaded) loadCourses(); }
+      else if (hash === '#communities') { activateTabKey('communities'); if (!commLoaded)    loadCommunities(); }
+    }
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+
+    // Search
+    const searchInput = document.getElementById('searchInput');
+    let searchTimer;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        if      (activeTab === 'major')  loadMajorStudents(selectedMajor, searchInput.value.trim());
+        else if (activeTab === 'year')   loadYearStudents(selectedYear, searchInput.value.trim());
+        else if (activeTab === 'gender') loadGenderStudents(selectedGender, searchInput.value.trim());
+      }, 300);
+    });
+
+    // ── BY MAJOR ──
+    let majorLoaded   = false;
+    let selectedMajor = '';
+    const MAJORS = ['Computer Science','Business','Engineering','Psychology','Mathematics','Physics','Chemistry','Biology','Economics','Communications','Fine Arts','Kinesiology','Political Science','Sociology','Other'];
+
+    function buildMajorPills() {
+      const row      = document.getElementById('majorPills');
+      row.innerHTML  = '';
+      const ownMajor = currentUser?.major || '';
+
+      // "All" pill: locked for free users who have a major set
+      const allActive = isPremium || !ownMajor;
+      const allPill = makePill('All', () => {
+        if (!isPremium && ownMajor) { showUpgradeToast('Upgrade to Premium to explore all majors'); return; }
+        selectedMajor = ''; updatePillActive(row, allPill); loadMajorStudents('');
+      }, allActive, !isPremium && !!ownMajor);
+      row.appendChild(allPill);
+
+      MAJORS.forEach(m => {
+        const isOwn  = m === ownMajor;
+        const locked = !isPremium && !isOwn;
+        const p = makePill(m, () => {
+          if (locked) { showUpgradeToast('Upgrade to Premium to explore all majors'); return; }
+          selectedMajor = m; updatePillActive(row, p); loadMajorStudents(m);
+        }, !isPremium && isOwn, locked);
+        row.appendChild(p);
+      });
+
+      if (!isPremium) selectedMajor = ownMajor;
+    }
+
+    async function loadMajorStudents(major = selectedMajor, search = '') {
+      majorLoaded = true;
+      const grid  = document.getElementById('majorGrid');
+      grid.innerHTML = skeletons(4);
+      const params = new URLSearchParams({ limit: 40 });
+      params.set('major', major);   // always send — backend uses presence to enforce free-plan scope
+      if (search) params.set('search', search);
+      try {
+        const res   = await fetch(`/api/users?${params}${uniParam()}`, { credentials: 'include' });
+        const users = await res.json();
+        renderStudentGrid(grid, users, !isPremium ? 'Upgrade to Premium to explore all majors' : null);
+      } catch (e) { grid.innerHTML = errorHtml(); }
+    }
+
+    // ── BY YEAR ──
+    let yearLoaded   = false;
+    let selectedYear = '';
+    const YEARS = ['Upcoming Students', '1st Year', '2nd Year', '3rd Year', '4th Year', '5th+ / Graduate'];
+
+    function buildYearPills() {
+      const row    = document.getElementById('yearPills');
+      row.innerHTML = '';
+      const ownYear = currentUser?.year || '';
+
+      const allActive = isPremium || !ownYear;
+      const allPill = makePill('All', () => {
+        if (!isPremium && ownYear) { showUpgradeToast('Upgrade to Premium to explore all years'); return; }
+        selectedYear = ''; updatePillActive(row, allPill); loadYearStudents('');
+      }, allActive, !isPremium && !!ownYear);
+      row.appendChild(allPill);
+
+      YEARS.forEach(y => {
+        const isOwn  = y === ownYear;
+        const locked = !isPremium && !isOwn;
+        const p = makePill(y, () => {
+          if (locked) { showUpgradeToast('Upgrade to Premium to explore all years'); return; }
+          selectedYear = y; updatePillActive(row, p); loadYearStudents(y);
+        }, !isPremium && isOwn, locked);
+        row.appendChild(p);
+      });
+
+      if (!isPremium) selectedYear = ownYear;
+    }
+
+    async function loadYearStudents(year = selectedYear, search = '') {
+      yearLoaded = true;
+      const grid = document.getElementById('yearGrid');
+      grid.innerHTML = skeletons(4);
+      const params = new URLSearchParams({ limit: 40 });
+      params.set('year', year);     // always send — backend uses presence to enforce free-plan scope
+      if (search) params.set('search', search);
+      try {
+        const res   = await fetch(`/api/users?${params}${uniParam()}`, { credentials: 'include' });
+        const users = await res.json();
+        renderStudentGrid(grid, users, !isPremium ? 'Upgrade to Premium to explore all years' : null);
+      } catch (e) { grid.innerHTML = errorHtml(); }
+    }
+
+    // ── BY COURSE ──
+    let coursesLoaded   = false;
+    let selectedTerm    = '';
+
+    async function loadCourses(term = '') {
+      coursesLoaded = true;
+      const list = document.getElementById('courseList');
+      list.innerHTML = `<div style="padding:32px;text-align:center;color:var(--muted);font-size:14px;">Loading…</div>`;
+
+      try {
+        if (!document.getElementById('termPills').children.length) {
+          const tRes  = await fetch('/api/courses/terms', { credentials: 'include' });
+          const terms = await tRes.json();
+          const row   = document.getElementById('termPills');
+          terms.forEach((t, i) => {
+            const p = makePill(t, () => {
+              selectedTerm = t;
+              updatePillActive(row, p);
+              loadCourses(t);
+            }, i === 0);
+            row.appendChild(p);
+          });
+          if (terms.length) selectedTerm = terms[0];
+        }
+
+        const params = new URLSearchParams();
+        if (term || selectedTerm) params.set('term', term || selectedTerm);
+        const res     = await fetch(`/api/courses?${params}`, { credentials: 'include' });
+        const courses = await res.json();
+
+        list.innerHTML = '';
+        if (!courses.length) {
+          list.innerHTML = `<div style="padding:32px;text-align:center;color:var(--muted);font-size:14px;">No courses found.</div>`;
+          return;
+        }
+
+        courses.forEach(c => {
+          const row = document.createElement('a');
+          row.href  = `/course.html?id=${c.id}`;
+          row.className = 'cc-course-row';
+          row.innerHTML = `
+            <div class="cc-course-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              </svg>
+            </div>
+            <div class="cc-course-info">
+              <div class="cc-course-code">${c.code}</div>
+              <div class="cc-course-name">${c.name}</div>
+              ${c.schedule ? `<div class="cc-course-schedule">${c.schedule}</div>` : ''}
+            </div>
+            <span class="cc-badge cc-badge-accent">${c.student_count}</span>
+          `;
+          list.appendChild(row);
+        });
+      } catch (e) {
+        list.innerHTML = errorHtml();
+      }
+    }
+
+    // ── COMMUNITIES ──
+    let commLoaded      = false;
+    let selectedRegion  = '';
+    const REGIONS = ['All','Middle East','Europe','Asia','Africa','Americas'];
+
+    function buildRegionPills() {
+      const row = document.getElementById('regionPills');
+      REGIONS.forEach((r, i) => {
+        const p = makePill(r, () => {
+          selectedRegion = r === 'All' ? '' : r;
+          updatePillActive(row, p);
+          loadCommunities(selectedRegion);
+        }, i === 0);
+        row.appendChild(p);
+      });
+    }
+
+    async function loadCommunities(region = '') {
+      commLoaded = true;
+      const grid = document.getElementById('communitiesGrid');
+      grid.innerHTML = skeletons(4);
+      try {
+        const qBase  = region ? `?region=${encodeURIComponent(region)}` : '';
+        const qUni   = (isCrossCampus && selectedUniId && selectedUniId !== currentUser?.university_id) ? `${qBase ? '&' : '?'}uniId=${selectedUniId}` : '';
+        const res    = await fetch(`/api/communities${qBase}${qUni}`, { credentials: 'include' });
+        const comms  = await res.json();
+        grid.innerHTML = '';
+        if (!comms.length) { grid.innerHTML = `<div style="grid-column:1/-1;${emptyCss()}">No communities found.</div>`; return; }
+        comms.forEach(c => {
+          const card = document.createElement('a');
+          card.href  = `/community.html?id=${c.id}`;
+          card.className = 'cc-card cc-community-card';
+          card.innerHTML = `
+            <div class="cc-community-card-stripe" style="background:${c.color_hex};"></div>
+            <div class="cc-community-card-body">
+              <div class="cc-community-emoji">${c.flag_emoji}</div>
+              <div class="cc-community-name">${c.name}</div>
+              <div class="cc-community-meta">${c.member_count} member${c.member_count != 1 ? 's' : ''}</div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      } catch (e) { grid.innerHTML = errorHtml(); }
+    }
+
+    buildRegionPills();
+
+    // ── BY GENDER (premium only) ──
+    let genderLoaded   = false;
+    let selectedGender = '';
+    const GENDERS = ['Male', 'Female', 'Non-binary'];
+
+    function buildGenderPills() {
+      const row = document.getElementById('genderPills');
+      row.innerHTML = '';
+      const allPill = makePill('All', () => {
+        selectedGender = ''; updatePillActive(row, allPill); loadGenderStudents('');
+      }, true);
+      row.appendChild(allPill);
+      GENDERS.forEach(g => {
+        const p = makePill(g, () => {
+          selectedGender = g; updatePillActive(row, p); loadGenderStudents(g);
+        });
+        row.appendChild(p);
+      });
+    }
+
+    async function loadGenderStudents(gender = selectedGender, search = '') {
+      genderLoaded = true;
+      const grid = document.getElementById('genderGrid');
+      grid.innerHTML = skeletons(4);
+      const params = new URLSearchParams({ limit: 40 });
+      params.set('gender', gender);  // always send — backend validates premium
+      if (search) params.set('search', search);
+      try {
+        const res = await fetch(`/api/users?${params}${uniParam()}`, { credentials: 'include' });
+        if (res.status === 403) { grid.innerHTML = errorHtml(); return; }
+        const users = await res.json();
+        renderStudentGrid(grid, users, null);
+      } catch (e) { grid.innerHTML = errorHtml(); }
+    }
+
+    // ── Helpers ──
+    function renderStudentGrid(grid, users, upgradeMsg = null) {
+      grid.innerHTML = '';
+      // Show upgrade nudge for free users (rendered as a full-width note above cards)
+      if (upgradeMsg) {
+        const note = document.createElement('div');
+        note.style.cssText = 'grid-column:1/-1;padding:2px 2px 10px;font-size:12px;color:var(--muted);';
+        note.innerHTML = `Free plan &nbsp;·&nbsp; ${upgradeMsg}`;
+        grid.appendChild(note);
+      }
+      if (!users.length) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'grid-column:1/-1;padding:40px 0;text-align:center;color:var(--muted);font-size:14px;';
+        empty.textContent = 'No students found.';
+        grid.appendChild(empty);
+        return;
+      }
+      users.forEach(u => {
+        const card = document.createElement('a');
+        card.href  = `/profile.html?id=${u.id}`;
+        card.className = 'cc-card cc-student-card';
+        card.dataset.userId = u.id;
+        const initial = (u.name || '?')[0].toUpperCase();
+        const photoHtml = u.photo_url
+          ? `<img src="${u.photo_url}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />`
+          : '';
+        const presenceDot = (u.is_online !== null && u.is_online !== undefined)
+          ? `<span class="cc-presence-dot ${u.is_online ? 'online' : 'offline'}"></span>`
+          : '';
+        const meta   = [u.major, u.year].filter(Boolean).join(' · ');
+        const gender = (u.gender && u.gender !== 'Prefer not to say') ? u.gender : '';
+        card.innerHTML = `
+          <div class="cc-avatar-wrap">
+            <div class="cc-avatar">${initial}${photoHtml}</div>
+            ${presenceDot}
+          </div>
+          <div class="cc-student-card-name">${u.name || 'Student'}</div>
+          <div class="cc-student-card-meta">${meta}</div>
+          ${gender ? `<div class="cc-student-card-gender">${gender}</div>` : ''}
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function makePill(label, onClick, active = false, locked = false) {
+      const btn = document.createElement('button');
+      btn.className = 'cc-pill' + (active ? ' active' : '') + (locked ? ' cc-pill-locked' : '');
+      btn.textContent = label;
+      btn.addEventListener('click', onClick);
+      return btn;
+    }
+
+    let _upgradeToastEl = null;
+    let _upgradeToastTimer = null;
+    function showUpgradeToast(msg) {
+      if (!_upgradeToastEl) {
+        _upgradeToastEl = document.createElement('div');
+        _upgradeToastEl.className = 'cc-upgrade-toast';
+        document.body.appendChild(_upgradeToastEl);
+      }
+      _upgradeToastEl.textContent = msg;
+      clearTimeout(_upgradeToastTimer);
+      void _upgradeToastEl.offsetWidth; // force reflow so transition restarts
+      _upgradeToastEl.classList.add('show');
+      _upgradeToastTimer = setTimeout(() => _upgradeToastEl.classList.remove('show'), 2800);
+    }
+
+    function updatePillActive(row, activePill) {
+      row.querySelectorAll('.cc-pill').forEach(p => p.classList.remove('active'));
+      activePill.classList.add('active');
+    }
+
+    function skeletons(n) {
+      return Array.from({ length: n }, () =>
+        `<div class="cc-skeleton" style="height:140px;border-radius:16px;"></div>`
+      ).join('');
+    }
+
+    function errorHtml() {
+      return `<div style="grid-column:1/-1;padding:32px;text-align:center;color:var(--muted);font-size:14px;">Failed to load. Try refreshing.</div>`;
+    }
+
+    function emptyCss() {
+      return 'padding:40px 0;text-align:center;color:var(--muted);font-size:14px;';
+    }
+
+    // Real-time presence updates for visible student cards
+    try {
+      const socket = io({ withCredentials: true });
+      socket.on('presence:change', ({ userId, online }) => {
+        document.querySelectorAll(`[data-user-id="${userId}"] .cc-presence-dot`).forEach(dot => {
+          dot.className = `cc-presence-dot ${online ? 'online' : 'offline'}`;
+        });
+      });
+    } catch (e) {}
+  </script>
+</body>
+</html>

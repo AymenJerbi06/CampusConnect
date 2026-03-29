@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log in — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="cc-page">
+    <div class="cc-page-inner no-tab">
+      <div class="cc-auth-page animate-slide-up">
+
+        <div class="cc-auth-logo">
+          <a href="/" class="cc-header-logo">
+            <img src="/2.png" alt="CampusConnect" style="height:36px;width:36px;border-radius:9px;object-fit:cover;" />
+            <span>CampusConnect</span>
+          </a>
+        </div>
+
+        <div class="cc-auth-icon-wrap">
+          <div class="cc-auth-icon cc-auth-icon--login">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          </div>
+          <h1 class="cc-auth-title">Welcome back</h1>
+          <p class="cc-auth-subtitle">Enter your email and password to continue.</p>
+        </div>
+
+        <div class="cc-error-msg" id="errorMsg"></div>
+
+        <div class="cc-field">
+          <label class="cc-label" for="emailInput">University Email</label>
+          <input
+            type="email"
+            class="cc-input"
+            id="emailInput"
+            placeholder="you@sfu.ca"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+        </div>
+
+        <div class="cc-field">
+          <label class="cc-label" for="passwordInput">Password</label>
+          <div style="position:relative;">
+            <input
+              type="password"
+              class="cc-input"
+              id="passwordInput"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              style="padding-right:44px;"
+            />
+            <button type="button" id="togglePw" aria-label="Show password"
+              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;">
+              <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div style="text-align:right;margin-top:6px;">
+            <a href="/forgot-password.html" style="font-size:13px;color:var(--muted);font-weight:500;">Forgot password?</a>
+          </div>
+        </div>
+
+        <button class="cc-btn" id="loginBtn" disabled>
+          <span id="loginBtnText">Log in</span>
+        </button>
+
+        <div class="cc-auth-footer">
+          New to CampusConnect? <a href="/signup.html">Create a free account</a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const emailInput    = document.getElementById('emailInput');
+    const passwordInput = document.getElementById('passwordInput');
+    const loginBtn      = document.getElementById('loginBtn');
+    const errorMsg      = document.getElementById('errorMsg');
+
+    // Show/hide password toggle
+    document.getElementById('togglePw').addEventListener('click', () => {
+      const show = passwordInput.type === 'password';
+      passwordInput.type = show ? 'text' : 'password';
+    });
+
+    [emailInput, passwordInput].forEach(el => el.addEventListener('input', validate));
+    passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginBtn.click(); });
+
+    function validate() {
+      const ok = emailInput.value.trim().includes('@') && passwordInput.value.length >= 1;
+      loginBtn.disabled = !ok;
+    }
+
+    loginBtn.addEventListener('click', async () => {
+      const email    = emailInput.value.trim().toLowerCase();
+      const password = passwordInput.value;
+
+      errorMsg.classList.remove('show');
+      loginBtn.disabled = true;
+      document.getElementById('loginBtnText').textContent = 'Logging in…';
+
+      try {
+        const res  = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success && data.step === 'otp') {
+          sessionStorage.setItem('cc_email', email);
+          sessionStorage.setItem('cc_flow',  'login');
+          window.location.href = '/otp.html';
+        } else if (data.needsPasswordSetup) {
+          showError('No password set. Please sign up to create a password.');
+        } else {
+          showError(data.message || 'Login failed. Please try again.');
+        }
+      } catch (e) {
+        showError('Network error. Please try again.');
+      } finally {
+        loginBtn.disabled = false;
+        document.getElementById('loginBtnText').textContent = 'Log in';
+        validate();
+      }
+    });
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.add('show');
+    }
+  </script>
+</body>
+</html>

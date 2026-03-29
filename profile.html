@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="cc-page">
+
+    <!-- Header -->
+    <header class="cc-header">
+      <button class="cc-back-btn" onclick="history.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Back
+      </button>
+    </header>
+
+    <div class="cc-page-inner" style="overflow-y:auto; padding-bottom:80px;" id="pageContent">
+      <div style="padding:32px;text-align:center;color:var(--muted);">Loading…</div>
+    </div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="cc-tab-bar">
+      <a href="/home.html" class="cc-tab-item" aria-label="Explore">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <span>Explore</span>
+      </a>
+      <a href="/inbox.html" class="cc-tab-item" aria-label="Friends">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>
+          <span class="cc-nav-badge" id="friendsBadge" style="display:none;"></span>
+        </span>
+        <span>Friends</span>
+      </a>
+      <a href="/study.html" class="cc-tab-item" aria-label="Study">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </span>
+        <span>Study</span>
+      </a>
+      <a href="/messages.html" class="cc-tab-item" aria-label="Messages">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="cc-nav-badge" id="messagesBadge" style="display:none;"></span>
+        </span>
+        <span>Messages</span>
+      </a>
+      <a href="/my-profile.html" class="cc-tab-item" aria-label="Profile">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <span>Profile</span>
+      </a>
+    </nav>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/presence.js"></script>
+  <script src="/js/badges.js"></script>
+  <script>
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) window.location.href = '/home.html';
+
+    let meId         = null;
+    let mePlan       = 'free';
+    let friendStatus = 'none';
+    const content    = document.getElementById('pageContent');
+
+    (async () => {
+      const res  = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await res.json();
+      if (!data.authenticated) { window.location.href = '/'; return; }
+      meId   = data.user.id;
+      mePlan = data.user.plan || 'free';
+      if (String(meId) === String(id)) { window.location.href = '/my-profile.html'; return; }
+      loadProfile();
+      refreshBadges();
+    })();
+
+    async function loadProfile() {
+      try {
+        // Fetch profile data and friend status independently — profile sections
+        // must never depend on friendship state for their visibility
+        const [userRes, statusRes] = await Promise.all([
+          fetch(`/api/users/${id}`, { credentials: 'include' }),
+          fetch(`/api/friends/status/${id}`, { credentials: 'include' }),
+        ]);
+        if (!userRes.ok) { window.location.href = '/home.html'; return; }
+        const user = await userRes.json();
+
+        // Update only friendship state, not the profile object
+        if (statusRes.ok) {
+          const s = await statusRes.json();
+          friendStatus = s.status || 'none';
+        }
+
+        renderProfile(user);
+      } catch (e) {
+        content.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);">Failed to load profile.</div>';
+      }
+    }
+
+    let profileUserId = null;
+
+    // ── Presence helpers ──────────────────────────────────────────────────────
+    // Returns "" when is_online is null (hidden presence — not the same as offline)
+    function presenceDotHtml(user) {
+      if (user.is_online === null || user.is_online === undefined) return '';
+      return `<span class="cc-presence-dot-lg ${user.is_online ? 'online' : 'offline'}" id="presenceDot"></span>`;
+    }
+
+    function presenceLabelHtml(user) {
+      if (user.is_online === null || user.is_online === undefined) return '';
+      if (user.is_online) return `<p class="cc-presence-label online" id="presenceLabel">Online now</p>`;
+      return `<p class="cc-presence-label" id="presenceLabel">${user.last_seen ? 'Last active ' + formatLastSeen(user.last_seen) : ''}</p>`;
+    }
+
+    function formatLastSeen(ts) {
+      if (!ts) return '';
+      const diff = Date.now() - new Date(ts).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1)  return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24)  return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      if (days === 1) return 'yesterday';
+      if (days < 7)  return `${days} days ago`;
+      return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function renderProfile(user) {
+      profileUserId = user.id;
+      const initial   = (user.name || '?')[0].toUpperCase();
+      const photoHtml = user.photo_url
+        ? `<img src="${user.photo_url}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />`
+        : '';
+
+      const communityBadges = (user.communities || []).map(c =>
+        `<span class="cc-interest-tag"><span>${c.flag_emoji}</span><span>${c.name}</span></span>`
+      ).join('');
+
+      const courseTags    = (user.courses || []).map(c => `<span class="cc-interest-tag purple">${c.code}</span>`).join('');
+      const interestTags  = [
+        user.major ? `<span class="cc-interest-tag accent">${user.major}</span>` : '',
+        user.year  ? `<span class="cc-interest-tag">${user.year}</span>` : '',
+      ].filter(Boolean).join('');
+
+      const igBtn = user.instagram ? `
+        <a href="https://instagram.com/${user.instagram}" target="_blank" rel="noopener" class="cc-social-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          @${user.instagram}
+        </a>` : '';
+
+      const liBtn = user.linkedin ? `
+        <a href="${user.linkedin}" target="_blank" rel="noopener" class="cc-social-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+          LinkedIn Profile
+        </a>` : '';
+
+      content.innerHTML = `
+        <div class="cc-profile-hero animate-slide-up">
+          <div class="cc-avatar-wrap">
+            <div class="cc-avatar cc-avatar-xl">${initial}${photoHtml}</div>
+            ${presenceDotHtml(user)}
+          </div>
+          <h1 class="cc-profile-name">${user.name || 'Student'}</h1>
+          <p class="cc-profile-meta">${[user.major, user.year].filter(Boolean).join(' · ')}</p>
+          ${presenceLabelHtml(user)}
+        </div>
+
+        <!-- Friend actions -->
+        <div id="friendActions" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:10px;"></div>
+
+        ${interestTags ? `<div class="cc-section-body"><div class="cc-tags-row">${interestTags}</div></div>` : ''}
+        ${user.bio ? `<div class="cc-divider"></div><p class="cc-profile-bio">${escHtml(user.bio)}</p>` : ''}
+        ${communityBadges ? `<div class="cc-divider"></div><p class="cc-section-title">Cultural Communities</p><div class="cc-section-body"><div class="cc-tags-row">${communityBadges}</div></div>` : ''}
+        ${(igBtn || liBtn) ? `<div class="cc-divider"></div><p class="cc-section-title">Connect</p><div class="cc-section-body"><div class="cc-social-row">${igBtn}${liBtn}</div></div>` : ''}
+        ${courseTags ? `<div class="cc-divider"></div><p class="cc-section-title">Courses This Term</p><div class="cc-section-body"><div class="cc-tags-row">${courseTags}</div></div>` : ''}
+        <div style="height:16px;"></div>
+      `;
+
+      renderFriendActions();
+    }
+
+    function renderFriendActions() {
+      // Only ever touches #friendActions — never re-renders the full profile
+      const box = document.getElementById('friendActions');
+      if (!box) return;
+      box.innerHTML = '';
+      // Guard: never hide public profile sections based on friendship status
+      ['cc-profile-hero', 'cc-profile-bio', 'cc-section-title'].forEach(cls => {
+        document.querySelectorAll('.' + cls).forEach(el => { el.style.display = ''; });
+      });
+
+      // Premium users can message anyone — show Message button for all statuses
+      if (mePlan === 'premium' || friendStatus === 'friends') {
+        const msgBtn = document.createElement('a');
+        msgBtn.href      = `/chat.html?id=${id}`;
+        msgBtn.className = 'cc-btn';
+        msgBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;stroke:#0a0a0f;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Message`;
+        box.appendChild(msgBtn);
+      }
+
+      if (friendStatus === 'friends') {
+        const unfriendBtn = document.createElement('button');
+        unfriendBtn.className   = 'cc-btn cc-btn-ghost-muted';
+        unfriendBtn.textContent = 'Friends ✓';
+        unfriendBtn.addEventListener('click', async () => {
+          if (!confirm('Remove this friend?')) return;
+          await fetch(`/api/friends/${id}`, { method: 'DELETE', credentials: 'include' });
+          friendStatus = 'none';
+          renderFriendActions();
+        });
+        box.appendChild(unfriendBtn);
+
+      } else if (friendStatus === 'sent') {
+        const btn = document.createElement('button');
+        btn.className   = 'cc-btn cc-btn-ghost-muted';
+        btn.textContent = 'Requested — tap to cancel';
+        btn.addEventListener('click', async () => {
+          await fetch(`/api/friends/request/${id}`, { method: 'DELETE', credentials: 'include' });
+          friendStatus = 'none';
+          renderFriendActions();
+        });
+        box.appendChild(btn);
+
+      } else if (friendStatus === 'received') {
+        const acceptBtn = document.createElement('button');
+        acceptBtn.className   = 'cc-btn';
+        acceptBtn.textContent = 'Accept friend request';
+        acceptBtn.addEventListener('click', async () => {
+          acceptBtn.disabled    = true;
+          acceptBtn.textContent = 'Accepting…';
+          try {
+            const r    = await fetch(`/api/friends/accept/${id}`, { method: 'POST', credentials: 'include' });
+            const data = await r.json();
+            if (data.success) {
+              friendStatus = data.status || 'friends';
+              renderFriendActions();
+            } else {
+              acceptBtn.disabled    = false;
+              acceptBtn.textContent = 'Accept friend request';
+            }
+          } catch (e) {
+            acceptBtn.disabled    = false;
+            acceptBtn.textContent = 'Accept friend request';
+          }
+        });
+        box.appendChild(acceptBtn);
+
+        const declineBtn = document.createElement('button');
+        declineBtn.className   = 'cc-btn cc-btn-ghost-muted';
+        declineBtn.textContent = 'Decline';
+        declineBtn.addEventListener('click', async () => {
+          await fetch(`/api/friends/decline/${id}`, { method: 'POST', credentials: 'include' });
+          friendStatus = 'none';
+          renderFriendActions();
+        });
+        box.appendChild(declineBtn);
+
+      } else {
+        const btn = document.createElement('button');
+        btn.className   = 'cc-btn';
+        btn.textContent = 'Add friend';
+        btn.addEventListener('click', async () => {
+          btn.disabled    = true;
+          btn.textContent = 'Sending…';
+          await fetch(`/api/friends/request/${id}`, { method: 'POST', credentials: 'include' });
+          friendStatus = 'sent';
+          renderFriendActions();
+        });
+        box.appendChild(btn);
+      }
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+    }
+
+    // Real-time presence updates — patch both dot and label in place
+    try {
+      const socket = io({ withCredentials: true });
+      socket.on('presence:change', ({ userId, online, last_seen }) => {
+        if (userId !== profileUserId) return;
+        const dot = document.getElementById('presenceDot');
+        if (dot) dot.className = `cc-presence-dot-lg ${online ? 'online' : 'offline'}`;
+        const lbl = document.getElementById('presenceLabel');
+        if (lbl) {
+          lbl.textContent = online ? 'Online now' : (last_seen ? 'Last active ' + formatLastSeen(last_seen) : '');
+          lbl.className   = `cc-presence-label${online ? ' online' : ''}`;
+        }
+      });
+    } catch (e) {}
+  </script>
+</body>
+</html>

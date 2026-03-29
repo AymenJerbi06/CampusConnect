@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Set Up Profile — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+  <style>
+    .crop-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .crop-modal-overlay.open { display: flex; }
+    .crop-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+    }
+    .crop-modal-header {
+      padding: 16px 20px;
+      font-weight: 700;
+      font-size: 15px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .crop-modal-body {
+      padding: 16px;
+      max-height: 60vh;
+      overflow: hidden;
+    }
+    .crop-modal-body img { display: block; max-width: 100%; }
+    .crop-modal-footer {
+      padding: 12px 16px;
+      display: flex;
+      gap: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .crop-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .crop-btn-cancel { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+    .crop-btn-apply  { background: var(--accent); color: #0a0a0f; }
+  </style>
+</head>
+<body>
+  <div class="cc-page">
+
+    <!-- Header -->
+    <header class="cc-header">
+      <div class="cc-header-logo">
+        <div class="cc-logo-mark">CC</div>
+        <span>CampusConnect</span>
+      </div>
+    </header>
+
+    <div class="cc-page-inner no-tab" style="overflow-y: auto;">
+      <div style="padding: 0 20px 40px;" class="animate-slide-up">
+
+        <!-- Progress -->
+        <div class="cc-progress-dots" style="padding-top: 24px;">
+          <div class="cc-dot done"></div>
+          <div class="cc-dot done"></div>
+          <div class="cc-dot active"></div>
+        </div>
+
+        <div style="margin: 20px 0 28px;">
+          <h1 class="cc-auth-title">Set up your profile</h1>
+          <p style="font-size: 14px; color: var(--muted); line-height: 1.5;">Tell other students who you are. You can edit this later.</p>
+        </div>
+
+        <!-- Error -->
+        <div class="cc-error-msg" id="errorMsg"></div>
+
+        <!-- Photo upload -->
+        <div class="cc-photo-upload">
+          <div class="cc-photo-circle" id="photoPicker" title="Upload a photo">
+            <img id="photoPreview" src="" alt="" style="display:none;" />
+            <div class="cc-photo-circle-icon" id="photoPlaceholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                <circle cx="12" cy="13" r="3"/>
+              </svg>
+              Add photo
+            </div>
+          </div>
+          <input type="file" id="photoFile" accept="image/*" style="display:none;" />
+          <span style="font-size: 12px; color: var(--muted);">Optional — adds a personal touch</span>
+        </div>
+
+        <!-- Name -->
+        <div class="cc-field">
+          <label class="cc-label" for="nameInput">Full Name <span style="color:var(--accent)">*</span></label>
+          <input type="text" class="cc-input" id="nameInput" placeholder="Your full name" autocomplete="name" />
+        </div>
+
+        <!-- Major -->
+        <div class="cc-field">
+          <label class="cc-label" for="majorSelect">Major <span style="color:var(--accent)">*</span></label>
+          <select class="cc-select" id="majorSelect">
+            <option value="">Select your major…</option>
+            <option>Computer Science</option>
+            <option>Business</option>
+            <option>Engineering</option>
+            <option>Psychology</option>
+            <option>Mathematics</option>
+            <option>Physics</option>
+            <option>Chemistry</option>
+            <option>Biology</option>
+            <option>Economics</option>
+            <option>Communications</option>
+            <option>Fine Arts</option>
+            <option>Kinesiology</option>
+            <option>Political Science</option>
+            <option>Sociology</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <!-- Year -->
+        <div class="cc-field">
+          <label class="cc-label" for="yearSelect">Year <span style="color:var(--accent)">*</span></label>
+          <select class="cc-select" id="yearSelect">
+            <option value="">Select your year…</option>
+            <option>Upcoming Students</option>
+            <option>1st Year</option>
+            <option>2nd Year</option>
+            <option>3rd Year</option>
+            <option>4th Year</option>
+            <option>5th+ / Graduate</option>
+          </select>
+        </div>
+
+        <!-- Gender -->
+        <div class="cc-field">
+          <label class="cc-label" for="genderSelect">Gender</label>
+          <select class="cc-select" id="genderSelect">
+            <option value="">Select gender…</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Non-binary">Non-binary</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </select>
+        </div>
+
+        <!-- Bio -->
+        <div class="cc-field">
+          <label class="cc-label" for="bioInput">Bio</label>
+          <textarea class="cc-input cc-textarea" id="bioInput" placeholder="Tell other students a bit about yourself…" maxlength="280"></textarea>
+          <div class="cc-char-count"><span id="bioCount">0</span>/280</div>
+        </div>
+
+        <!-- Instagram -->
+        <div class="cc-field">
+          <label class="cc-label" for="igInput">Instagram Handle</label>
+          <div class="cc-input-prefix-wrap">
+            <span class="cc-input-prefix">@</span>
+            <input type="text" class="cc-input" id="igInput" placeholder="yourhandle" autocapitalize="none" />
+          </div>
+        </div>
+
+        <!-- LinkedIn -->
+        <div class="cc-field">
+          <label class="cc-label" for="liInput">LinkedIn URL</label>
+          <input type="url" class="cc-input" id="liInput" placeholder="https://linkedin.com/in/yourname" />
+        </div>
+
+        <!-- Cultural Communities -->
+        <div class="cc-field">
+          <label class="cc-label">Cultural Communities</label>
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 10px;">Select all that apply. This helps others find people like them.</p>
+          <div id="communitiesList" style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="text-align:center; padding: 16px; color: var(--muted); font-size: 13px;">Loading communities…</div>
+          </div>
+        </div>
+
+        <!-- Hide community toggle -->
+        <div class="cc-field">
+          <div class="cc-toggle-row">
+            <div>
+              <div class="cc-toggle-label">Hide community from profile</div>
+              <div class="cc-toggle-sub">Others won't see your cultural background</div>
+            </div>
+            <label class="cc-toggle">
+              <input type="checkbox" id="hideCommunity" />
+              <span class="cc-toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Browse privately toggle -->
+        <div class="cc-field">
+          <div class="cc-toggle-row">
+            <div>
+              <div class="cc-toggle-label">Browse profiles privately</div>
+              <div class="cc-toggle-sub">Your profile visits won't be recorded</div>
+            </div>
+            <label class="cc-toggle">
+              <input type="checkbox" id="browsePrivately" />
+              <span class="cc-toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Courses -->
+        <div class="cc-field">
+          <label class="cc-label">Courses This Term</label>
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 10px;">Add courses to find classmates.</p>
+          <div id="coursesList" style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="text-align:center; padding: 16px; color: var(--muted); font-size: 13px;">Loading courses…</div>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button class="cc-btn" id="saveBtn">
+          <span id="saveBtnText">Finish setup</span>
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Crop Modal -->
+  <div class="crop-modal-overlay" id="cropOverlay">
+    <div class="crop-modal">
+      <div class="crop-modal-header">
+        <span>Adjust your photo</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:400;">Pinch or scroll to zoom</span>
+      </div>
+      <div class="crop-modal-body">
+        <img id="cropImage" src="" alt="" />
+      </div>
+      <div class="crop-modal-footer">
+        <button class="crop-btn crop-btn-cancel" id="cropCancel">Cancel</button>
+        <button class="crop-btn crop-btn-apply" id="cropApply">Use photo</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/presence.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+  <script>
+    // Auth guard
+    (async () => {
+      const res  = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await res.json();
+      if (!data.authenticated) window.location.href = '/';
+    })();
+
+    const bioInput    = document.getElementById('bioInput');
+    const bioCount    = document.getElementById('bioCount');
+    const photoPicker = document.getElementById('photoPicker');
+    const photoFile   = document.getElementById('photoFile');
+    const photoPreview= document.getElementById('photoPreview');
+    const photoHolder = document.getElementById('photoPlaceholder');
+    const errorMsg    = document.getElementById('errorMsg');
+    const saveBtn     = document.getElementById('saveBtn');
+
+    let photoDataUrl = null;
+    let cropper = null;
+
+    bioInput.addEventListener('input', () => {
+      bioCount.textContent = bioInput.value.length;
+    });
+
+    photoPicker.addEventListener('click', () => photoFile.click());
+
+    photoFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const cropImage = document.getElementById('cropImage');
+        cropImage.src = ev.target.result;
+        document.getElementById('cropOverlay').classList.add('open');
+        if (cropper) { cropper.destroy(); cropper = null; }
+        // init after image loads
+        cropImage.onload = () => {
+          cropper = new Cropper(cropImage, {
+            aspectRatio: 1,
+            viewMode: 1,
+            dragMode: 'move',
+            autoCropArea: 0.9,
+            restore: false,
+            guides: false,
+            center: false,
+            highlight: false,
+            cropBoxMovable: false,
+            cropBoxResizable: false,
+            toggleDragModeOnDblclick: false,
+          });
+        };
+      };
+      reader.readAsDataURL(file);
+      // reset so same file can be re-picked
+      photoFile.value = '';
+    });
+
+    document.getElementById('cropCancel').addEventListener('click', () => {
+      document.getElementById('cropOverlay').classList.remove('open');
+      if (cropper) { cropper.destroy(); cropper = null; }
+    });
+
+    document.getElementById('cropApply').addEventListener('click', () => {
+      if (!cropper) return;
+      // export at 400×400, JPEG quality 0.85 — keeps size well under 1mb
+      const canvas = cropper.getCroppedCanvas({ width: 400, height: 400, imageSmoothingQuality: 'high' });
+      photoDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      photoPreview.src = photoDataUrl;
+      photoPreview.style.display = 'block';
+      photoHolder.style.display = 'none';
+      cropper.destroy(); cropper = null;
+      document.getElementById('cropOverlay').classList.remove('open');
+    });
+
+    // Load communities — selectedIds pre-checks boxes that already belong to the user
+    async function loadCommunities(selectedIds = []) {
+      const res  = await fetch('/api/communities', { credentials: 'include' });
+      const data = await res.json();
+      const list = document.getElementById('communitiesList');
+      list.innerHTML = '';
+
+      const regions = [...new Set(data.map(c => c.region))];
+      regions.forEach(region => {
+        const header = document.createElement('p');
+        header.style.cssText = 'font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin:10px 0 6px;';
+        header.textContent = region;
+        list.appendChild(header);
+        data.filter(c => c.region === region).forEach(c => {
+          const item      = document.createElement('label');
+          item.className  = 'cc-checkbox-item';
+          const checked   = selectedIds.includes(c.id);
+          item.innerHTML  = `
+            <input type="checkbox" value="${c.id}"${checked ? ' checked' : ''} />
+            <span class="cc-checkbox-emoji">${c.flag_emoji}</span>
+            <span class="cc-checkbox-label">${c.name}</span>
+          `;
+          if (checked) item.classList.add('selected');
+          item.querySelector('input').addEventListener('change', (e) => {
+            item.classList.toggle('selected', e.target.checked);
+          });
+          list.appendChild(item);
+        });
+      });
+    }
+
+    // Load courses — selectedIds pre-checks courses already enrolled in
+    async function loadCourses(selectedIds = []) {
+      try {
+        const termsRes = await fetch('/api/courses/terms', { credentials: 'include' });
+        const terms    = await termsRes.json();
+        const term     = terms[0];
+
+        const res  = await fetch(`/api/courses?term=${encodeURIComponent(term)}`, { credentials: 'include' });
+        const data = await res.json();
+        const list = document.getElementById('coursesList');
+        list.innerHTML = '';
+
+        if (!data.length) {
+          list.innerHTML = '<div style="color:var(--muted);font-size:13px;">No courses available for this term.</div>';
+          return;
+        }
+
+        const termHeader = document.createElement('p');
+        termHeader.style.cssText = 'font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin:0 0 8px;';
+        termHeader.textContent = term;
+        list.appendChild(termHeader);
+
+        data.forEach(c => {
+          const item     = document.createElement('label');
+          item.className = 'cc-checkbox-item';
+          const checked  = selectedIds.includes(c.id);
+          item.innerHTML = `
+            <input type="checkbox" value="${c.id}"${checked ? ' checked' : ''} />
+            <span class="cc-checkbox-label" style="display:flex;flex-direction:column;gap:1px;">
+              <span style="font-size:13px;font-weight:700;color:var(--accent2);">${c.code}</span>
+              <span style="font-size:12px;color:var(--text);">${c.name}</span>
+              ${c.schedule ? `<span style="font-size:11px;color:var(--muted);">${c.schedule}</span>` : ''}
+            </span>
+          `;
+          if (checked) item.classList.add('selected');
+          item.querySelector('input').addEventListener('change', (e) => {
+            item.classList.toggle('selected', e.target.checked);
+          });
+          list.appendChild(item);
+        });
+      } catch (e) {
+        document.getElementById('coursesList').innerHTML =
+          '<div style="color:var(--muted);font-size:13px;">Could not load courses.</div>';
+      }
+    }
+
+    saveBtn.addEventListener('click', async () => {
+      const name  = document.getElementById('nameInput').value.trim();
+      const major = document.getElementById('majorSelect').value;
+      const year  = document.getElementById('yearSelect').value;
+
+      if (!name || !major || !year) {
+        showError('Please fill in your name, major, and year.');
+        return;
+      }
+
+      const bio          = bioInput.value.trim();
+      const instagram    = document.getElementById('igInput').value.trim();
+      const linkedin     = document.getElementById('liInput').value.trim();
+      const gender           = document.getElementById('genderSelect').value || null; // empty string = unset → null
+      const hide_community   = document.getElementById('hideCommunity').checked;
+      const browse_privately = document.getElementById('browsePrivately').checked;
+
+      const communityIds = Array.from(
+        document.querySelectorAll('#communitiesList input[type="checkbox"]:checked')
+      ).map(el => parseInt(el.value));
+
+      const courseIds = Array.from(
+        document.querySelectorAll('#coursesList input[type="checkbox"]:checked')
+      ).map(el => parseInt(el.value));
+
+      errorMsg.classList.remove('show');
+      saveBtn.disabled = true;
+      document.getElementById('saveBtnText').textContent = 'Saving…';
+
+      try {
+        const res = await fetch('/api/users/me', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name, major, year, bio, gender,
+            instagram: instagram || null,
+            linkedin:  linkedin  || null,
+            photo_url: photoDataUrl || null,
+            hide_community,
+            browse_privately,
+            communityIds,
+            courseIds,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = '/home.html';
+        } else {
+          showError(data.message || 'Could not save profile.');
+        }
+      } catch (e) {
+        showError('Network error. Please try again.');
+      } finally {
+        saveBtn.disabled = false;
+        document.getElementById('saveBtnText').textContent = 'Finish setup';
+      }
+    });
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.add('show');
+      errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Single coordinated init: fetch user first, then render lists with pre-selections
+    (async () => {
+      try {
+        const res  = await fetch('/api/users/me', { credentials: 'include' });
+        const user = await res.json();
+
+        // Pre-fill text fields immediately
+        if (user.name)  document.getElementById('nameInput').value  = user.name;
+        if (user.major) document.getElementById('majorSelect').value = user.major;
+        if (user.year)  document.getElementById('yearSelect').value  = user.year;
+        if (user.bio)   { bioInput.value = user.bio; bioCount.textContent = user.bio.length; }
+        if (user.instagram) document.getElementById('igInput').value = user.instagram;
+        if (user.linkedin)  document.getElementById('liInput').value  = user.linkedin;
+        if (user.gender) document.getElementById('genderSelect').value = user.gender;
+        if (user.hide_community)   document.getElementById('hideCommunity').checked   = true;
+        if (user.browse_privately) document.getElementById('browsePrivately').checked = true;
+        if (user.photo_url) {
+          photoDataUrl = user.photo_url;
+          photoPreview.src = user.photo_url;
+          photoPreview.style.display = 'block';
+          photoHolder.style.display = 'none';
+        }
+
+        // Extract saved IDs so checkboxes render pre-checked
+        const savedCommunityIds = (user.communities || []).map(c => c.id);
+        const savedCourseIds    = (user.courses     || []).map(c => c.id);
+
+        // Load lists with pre-selections applied after render
+        await Promise.all([
+          loadCommunities(savedCommunityIds),
+          loadCourses(savedCourseIds),
+        ]);
+      } catch (e) {
+        // Fallback: load lists without pre-selections
+        loadCommunities();
+        loadCourses();
+      }
+    })();
+  </script>
+</body>
+</html>

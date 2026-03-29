@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="cc-chat-page">
+
+    <!-- Header -->
+    <header class="cc-header">
+      <button class="cc-back-btn" onclick="history.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Back
+      </button>
+      <div id="chatHeader" style="display:flex;align-items:center;gap:10px;flex:1;justify-content:center;">
+        <div class="cc-avatar" id="chatAvatar" style="width:32px;height:32px;font-size:13px;flex-shrink:0;position:relative;">?</div>
+        <span id="chatName" style="font-weight:700;font-size:15px;color:var(--text);">Loading…</span>
+      </div>
+      <a href="#" id="chatProfileLink" style="font-size:12px;color:var(--muted);text-decoration:none;padding-right:4px;">Profile</a>
+    </header>
+
+    <!-- Messages -->
+    <div id="msgList" class="cc-chat-messages">
+      <div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">Loading…</div>
+    </div>
+
+    <!-- Typing indicator -->
+    <div id="typingIndicator" class="cc-typing-indicator" aria-live="polite">
+      <span class="cc-typing-dots"><span></span><span></span><span></span></span>
+      <span>Typing…</span>
+    </div>
+
+    <!-- Input bar -->
+    <div class="cc-chat-input-bar">
+      <input
+        type="text"
+        class="cc-chat-input"
+        id="msgInput"
+        placeholder="Message…"
+        autocomplete="off"
+        maxlength="1000"
+      />
+      <button class="cc-chat-send" id="sendBtn" aria-label="Send">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/presence.js"></script>
+  <script src="/js/badges.js"></script>
+  <script>
+    const otherId = parseInt(new URLSearchParams(window.location.search).get('id'));
+    if (!otherId) window.location.href = '/inbox.html';
+
+    let meId          = null;
+    let socket        = null;
+    let fallbackTimer = null;  // lightweight fallback poll (10 s)
+    let typingTimer   = null;
+    let _lastMsgCount = 0;
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    (async () => {
+      const res  = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await res.json();
+      if (!data.authenticated) { window.location.href = '/'; return; }
+      meId = data.user.id;
+
+      // Load partner's name / avatar
+      try {
+        const uRes = await fetch(`/api/users/${otherId}`, { credentials: 'include' });
+        if (uRes.ok) {
+          const u = await uRes.json();
+          document.getElementById('chatName').textContent = u.name || 'Student';
+          document.getElementById('chatProfileLink').href = `/profile.html?id=${otherId}`;
+          const avatar = document.getElementById('chatAvatar');
+          avatar.textContent = (u.name || '?')[0].toUpperCase();
+          if (u.photo_url) {
+            avatar.innerHTML = `<img src="${u.photo_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+          }
+        }
+      } catch (e) {}
+
+      initSocket();
+      await loadMessages();
+
+      // Fallback poll — fires if socket delivery fails
+      fallbackTimer = setInterval(loadMessages, 10000);
+    })();
+
+    // ── Socket.IO ─────────────────────────────────────────────────────────
+    function initSocket() {
+      socket = io({ withCredentials: true });
+
+      socket.on('connect', () => {
+        socket.emit('join:conv', otherId);
+      });
+
+      // New message from the other person — reload to show it
+      socket.on('message:sent', (msg) => {
+        if (msg.sender_id !== meId) loadMessages();
+      });
+
+      // The other person read my messages — update "Seen" instantly
+      socket.on('message:read', ({ readBy }) => {
+        if (readBy !== meId) updateReadReceipt();
+      });
+
+      // The other person is typing
+      socket.on('typing:start', () => showTyping(true));
+      socket.on('typing:stop',  () => showTyping(false));
+
+      // Friendship was removed — leave the chat immediately
+      socket.on('friend:removed', ({ otherId: removedId }) => {
+        if (parseInt(removedId) === otherId) {
+          clearInterval(fallbackTimer);
+          socket.disconnect();
+          window.location.href = '/inbox.html';
+        }
+      });
+    }
+
+    // ── Messages ─────────────────────────────────────────────────────────
+    async function loadMessages() {
+      try {
+        const res = await fetch(`/api/messages/${otherId}`, { credentials: 'include' });
+        if (!res.ok) {
+          // 403 means no longer friends — redirect out of this dead conversation
+          if (res.status === 403) { window.location.href = '/inbox.html'; return; }
+          const err = await res.json();
+          document.getElementById('msgList').innerHTML =
+            `<div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">${err.message || 'Cannot load messages.'}</div>`;
+          return;
+        }
+        const msgs = await res.json();
+        renderMessages(msgs);
+        refreshBadges();
+      } catch (e) {
+        document.getElementById('msgList').innerHTML =
+          '<div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">Failed to load messages.</div>';
+      }
+    }
+
+    function renderMessages(msgs) {
+      const list        = document.getElementById('msgList');
+      const wasAtBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+      const isFirstLoad = _lastMsgCount === 0;
+      const hasNewMsgs  = msgs.length > _lastMsgCount;
+
+      if (!msgs.length) {
+        list.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">No messages yet. Say hi!</div>';
+        _lastMsgCount = 0;
+        return;
+      }
+
+      list.innerHTML = '';
+      let lastDate     = '';
+      let lastMineWrap = null;
+      let lastMineMsg  = null;
+
+      msgs.forEach(m => {
+        const mine    = m.sender_id === meId;
+        const d       = new Date(m.created_at);
+        const dateStr = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+        if (dateStr !== lastDate) {
+          const sep = document.createElement('div');
+          sep.className   = 'cc-chat-date-sep';
+          sep.textContent = dateStr;
+          list.appendChild(sep);
+          lastDate = dateStr;
+        }
+
+        const wrap = document.createElement('div');
+        wrap.className = `cc-bubble-wrap ${mine ? 'mine' : 'theirs'}`;
+        wrap.innerHTML = `
+          <div class="cc-bubble ${mine ? 'cc-bubble--mine' : 'cc-bubble--theirs'}">${escHtml(m.content)}</div>
+          <div class="cc-bubble-time">${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+        `;
+        list.appendChild(wrap);
+
+        if (mine) { lastMineWrap = wrap; lastMineMsg = m; }
+      });
+
+      // Read receipt — show "· Seen" only on the last outgoing message, if read
+      if (lastMineWrap) {
+        lastMineWrap.setAttribute('data-last-mine', '');
+        if (lastMineMsg?.read) {
+          const t = lastMineWrap.querySelector('.cc-bubble-time');
+          if (t) t.textContent += ' · Seen';
+        }
+      }
+
+      _lastMsgCount = msgs.length;
+
+      if (isFirstLoad || (hasNewMsgs && wasAtBottom)) {
+        list.scrollTop = list.scrollHeight;
+      }
+    }
+
+    // Quick DOM update for "Seen" — avoids a full reload on read-receipt event
+    function updateReadReceipt() {
+      const wrap = document.querySelector('[data-last-mine]');
+      if (!wrap) return;
+      const t = wrap.querySelector('.cc-bubble-time');
+      if (t && !t.textContent.includes('Seen')) {
+        t.textContent += ' · Seen';
+      }
+    }
+
+    // ── Typing indicator ──────────────────────────────────────────────────
+    const TYPING_DEBOUNCE = 2000;
+
+    function showTyping(visible) {
+      document.getElementById('typingIndicator').classList.toggle('visible', visible);
+    }
+
+    const msgInput = document.getElementById('msgInput');
+    const sendBtn  = document.getElementById('sendBtn');
+
+    msgInput.addEventListener('input', () => {
+      if (socket?.connected) {
+        socket.emit('typing:start', otherId);
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => socket.emit('typing:stop', otherId), TYPING_DEBOUNCE);
+      }
+    });
+    msgInput.addEventListener('blur', () => {
+      if (socket?.connected) {
+        clearTimeout(typingTimer);
+        socket.emit('typing:stop', otherId);
+      }
+    });
+
+    // ── Send ──────────────────────────────────────────────────────────────
+    async function sendMessage() {
+      const content = msgInput.value.trim();
+      if (!content) return;
+      msgInput.value   = '';
+      sendBtn.disabled = true;
+
+      // Stop typing indicator immediately when message is sent
+      clearTimeout(typingTimer);
+      if (socket?.connected) socket.emit('typing:stop', otherId);
+
+      try {
+        const res = await fetch(`/api/messages/${otherId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ content }),
+        });
+        if (res.ok) {
+          _lastMsgCount = 0; // force scroll-to-bottom on next render
+          await loadMessages();
+        }
+      } catch (e) {}
+
+      sendBtn.disabled = false;
+      msgInput.focus();
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    msgInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+
+    // ── Cleanup ───────────────────────────────────────────────────────────
+    window.addEventListener('beforeunload', () => {
+      clearInterval(fallbackTimer);
+      if (socket?.connected) {
+        socket.emit('leave:conv', otherId);
+        socket.disconnect();
+      }
+    });
+
+    function escHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+    }
+  </script>
+</body>
+</html>

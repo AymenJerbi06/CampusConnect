@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Professor — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="cc-page">
+
+    <!-- Header -->
+    <header class="cc-header">
+      <button class="cc-back-btn" onclick="history.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Back
+      </button>
+      <div class="cc-header-actions">
+        <a href="/my-profile.html" style="display:flex;align-items:center;">
+          <div class="cc-avatar" id="headerAvatar" style="width:32px;height:32px;font-size:13px;border-color:var(--border);position:relative;">?</div>
+        </a>
+      </div>
+    </header>
+
+    <div class="cc-page-inner" style="overflow-y:auto; padding-bottom:80px;" id="pageContent">
+      <div style="padding:32px;text-align:center;color:var(--muted);">Loading…</div>
+    </div>
+
+    <!-- Toast -->
+    <div class="cc-toast no-tab" id="toast"></div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="cc-tab-bar">
+      <a href="/home.html" class="cc-tab-item" aria-label="Explore">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <span>Explore</span>
+      </a>
+      <a href="/inbox.html" class="cc-tab-item" aria-label="Friends">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>
+          <span class="cc-nav-badge" id="friendsBadge" style="display:none;"></span>
+        </span>
+        <span>Friends</span>
+      </a>
+      <a href="/study.html" class="cc-tab-item active" aria-label="Study">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </span>
+        <span>Study</span>
+      </a>
+      <a href="/messages.html" class="cc-tab-item" aria-label="Messages">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="cc-nav-badge" id="messagesBadge" style="display:none;"></span>
+        </span>
+        <span>Messages</span>
+      </a>
+      <a href="/my-profile.html" class="cc-tab-item" aria-label="Profile">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <span>Profile</span>
+      </a>
+    </nav>
+  </div>
+
+  <!-- Write review sheet -->
+  <div class="cc-sheet-overlay" id="writeSheet">
+    <div class="cc-sheet">
+      <div class="cc-sheet-handle"></div>
+      <div class="cc-sheet-title" id="writeSheetTitle">Write a Review</div>
+
+      <div class="cc-field">
+        <label class="cc-label">Course Code <span style="color:var(--accent)">*</span></label>
+        <input type="text" class="cc-input" id="writeCourse" placeholder="e.g. CMPT 120" maxlength="20" style="text-transform:uppercase;" />
+      </div>
+
+      <div class="cc-field">
+        <label class="cc-label">Rating <span style="color:var(--accent)">*</span></label>
+        <div class="cc-stars" id="writeStarPicker" style="gap:8px;padding:4px 0;">
+          <svg class="cc-star" data-v="1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg class="cc-star" data-v="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg class="cc-star" data-v="3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg class="cc-star" data-v="4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg class="cc-star" data-v="5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div id="writeRatingLabel" style="font-size:12px;color:var(--muted);margin-top:4px;height:16px;"></div>
+      </div>
+
+      <div class="cc-field">
+        <label class="cc-label">Comment <span style="font-size:11px;color:var(--muted);">(optional)</span></label>
+        <textarea class="cc-input cc-textarea" id="writeComment" placeholder="Share your experience…" maxlength="1000" rows="4"></textarea>
+        <div class="cc-char-count"><span id="writeCommentCount">0</span>/1000</div>
+      </div>
+
+      <div class="cc-field">
+        <label class="cc-label">Grade Received <span style="font-size:11px;color:var(--muted);">(optional)</span></label>
+        <select class="cc-select" id="writeGrade">
+          <option value="">Prefer not to say</option>
+          <option>A+</option><option>A</option><option>A-</option>
+          <option>B+</option><option>B</option><option>B-</option>
+          <option>C+</option><option>C</option><option>C-</option>
+          <option>D</option><option>F</option>
+        </select>
+      </div>
+
+      <div class="cc-error-msg" id="writeError"></div>
+      <div style="display:flex;gap:10px;">
+        <button class="cc-btn cc-btn-ghost" onclick="document.getElementById('writeSheet').classList.remove('open')" style="flex:1;">Cancel</button>
+        <button class="cc-btn" id="submitWriteBtn" style="flex:2;"><span id="submitWriteText">Submit review</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit review sheet -->
+  <div class="cc-sheet-overlay" id="editSheet">
+    <div class="cc-sheet">
+      <div class="cc-sheet-handle"></div>
+      <div class="cc-sheet-title">Edit Review</div>
+      <input type="hidden" id="editReviewId" />
+
+      <div class="cc-field">
+        <label class="cc-label">Rating <span style="color:var(--accent)">*</span></label>
+        <div class="cc-stars" id="editStarPicker" style="gap:8px;padding:4px 0;">
+          <svg class="cc-star" data-v="1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg class="cc-star" data-v="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg class="cc-star" data-v="3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg class="cc-star" data-v="4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg class="cc-star" data-v="5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+      </div>
+
+      <div class="cc-field">
+        <label class="cc-label">Comment <span style="font-size:11px;color:var(--muted);">(optional)</span></label>
+        <textarea class="cc-input cc-textarea" id="editComment" maxlength="1000" rows="4"></textarea>
+        <div class="cc-char-count"><span id="editCommentCount">0</span>/1000</div>
+      </div>
+
+      <div class="cc-field">
+        <label class="cc-label">Grade Received</label>
+        <select class="cc-select" id="editGrade">
+          <option value="">Prefer not to say</option>
+          <option>A+</option><option>A</option><option>A-</option>
+          <option>B+</option><option>B</option><option>B-</option>
+          <option>C+</option><option>C</option><option>C-</option>
+          <option>D</option><option>F</option>
+        </select>
+      </div>
+
+      <div class="cc-error-msg" id="editError"></div>
+      <div style="display:flex;gap:10px;">
+        <button class="cc-btn cc-btn-ghost" onclick="document.getElementById('editSheet').classList.remove('open')" style="flex:1;">Cancel</button>
+        <button class="cc-btn" id="saveEditBtn" style="flex:2;"><span id="saveEditText">Save changes</span></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/presence.js"></script>
+  <script src="/js/badges.js"></script>
+  <script>
+    const profId  = new URLSearchParams(window.location.search).get('id');
+    if (!profId) window.location.href = '/study.html';
+
+    let meId = null;
+    let currentCourse = '';
+    let profData = null;
+
+    (async () => {
+      const res  = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await res.json();
+      if (!data.authenticated) { window.location.href = '/'; return; }
+      meId = data.user.id;
+      refreshBadges();
+      const av = document.getElementById('headerAvatar');
+      if (data.user.photo_url) {
+        av.innerHTML = `<img src="${data.user.photo_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;position:absolute;inset:0;" />`;
+      } else {
+        av.textContent = (data.user.name || data.user.email || '?')[0].toUpperCase();
+      }
+      loadProfessor();
+    })();
+
+    async function loadProfessor(course = currentCourse) {
+      const content = document.getElementById('pageContent');
+      try {
+        const params = course ? `?course=${encodeURIComponent(course)}` : '';
+        const res  = await fetch(`/api/professors/${profId}${params}`, { credentials: 'include' });
+        if (!res.ok) { window.location.href = '/study.html'; return; }
+        profData = await res.json();
+        currentCourse = course;
+        renderPage(profData);
+      } catch (e) {
+        content.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);">Failed to load.</div>';
+      }
+    }
+
+    function renderPage(data) {
+      const content = document.getElementById('pageContent');
+      const avg = data.avg_rating || 0;
+      const total = data.review_count || 0;
+
+      // Breakdown map
+      const bMap = {};
+      (data.breakdown || []).forEach(b => { bMap[b.rating] = b.count; });
+
+      const breakdownHtml = [5,4,3,2,1].map(n => {
+        const count = bMap[n] || 0;
+        const pct   = total ? Math.round((count / total) * 100) : 0;
+        return `
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);">
+            <span style="width:8px;text-align:right;">${n}</span>
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:11px;height:11px;color:var(--accent);flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <div class="cc-rating-bar"><div class="cc-rating-bar-fill" style="width:${pct}%;"></div></div>
+            <span style="width:24px;">${count}</span>
+          </div>`;
+      }).join('');
+
+      // Course filter pills
+      const coursePills = (data.courses || []).map(c => {
+        const active = c === currentCourse;
+        return `<button class="cc-pill${active ? ' active' : ''}" data-course="${escHtml(c)}">${escHtml(c)}</button>`;
+      }).join('');
+
+      const allActive = !currentCourse;
+
+      // Reviews
+      const reviewsHtml = data.reviews.length === 0
+        ? `<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:14px;">No reviews yet${currentCourse ? ' for this course' : ''}.</div>`
+        : data.reviews.map(r => renderReviewHtml(r)).join('');
+
+      content.innerHTML = `
+        <!-- Hero -->
+        <div class="cc-profile-hero animate-slide-up" style="padding-bottom:20px;">
+          <div style="font-size:52px;margin-bottom:12px;">🎓</div>
+          <h1 class="cc-profile-name">${escHtml(data.name)}</h1>
+          ${data.department ? `<p class="cc-profile-meta">${escHtml(data.department)}</p>` : ''}
+          <div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:8px;">
+            ${renderStarsHtml(avg, 20)}
+            <span style="font-size:22px;font-weight:900;color:var(--accent);font-family:var(--font-head);">${avg || '—'}</span>
+          </div>
+          <p style="font-size:13px;color:var(--muted);margin-top:4px;">${total} review${total !== 1 ? 's' : ''}</p>
+        </div>
+
+        <!-- Rating breakdown -->
+        ${total > 0 ? `
+        <div class="cc-divider"></div>
+        <div style="padding:16px 20px;display:flex;flex-direction:column;gap:6px;">
+          ${breakdownHtml}
+        </div>` : ''}
+
+        <!-- Action: write a review -->
+        <div style="padding:0 16px 12px;">
+          <button class="cc-btn" id="addReviewBtn" style="width:100%;">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;stroke:#0a0a0f;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            Write a review
+          </button>
+        </div>
+
+        <!-- Course filter -->
+        ${data.courses.length > 1 ? `
+        <div class="cc-divider"></div>
+        <div class="cc-pills-row" id="courseFilterPills">
+          <button class="cc-pill${allActive ? ' active' : ''}" data-course="">All courses</button>
+          ${coursePills}
+        </div>` : ''}
+
+        <!-- Reviews list -->
+        <p class="cc-section-title">Reviews${currentCourse ? ' · ' + currentCourse : ''}</p>
+        <div id="reviewsList" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:12px;">${reviewsHtml}</div>
+      `;
+
+      // Add Review button
+      document.getElementById('addReviewBtn').addEventListener('click', () => {
+        openReviewSheet(data);
+      });
+
+      // Course filter pills
+      document.querySelectorAll('#courseFilterPills .cc-pill').forEach(pill => {
+        pill.addEventListener('click', () => loadProfessor(pill.dataset.course));
+      });
+
+      // Review actions (edit/delete) — delegated
+      document.getElementById('reviewsList').addEventListener('click', async (e) => {
+        const editBtn   = e.target.closest('[data-edit-review]');
+        const deleteBtn = e.target.closest('[data-delete-review]');
+        if (editBtn)   openEditSheet(editBtn.dataset.editReview);
+        if (deleteBtn) await deleteReview(deleteBtn.dataset.deleteReview);
+      });
+    }
+
+    function renderReviewHtml(r) {
+      const initial   = (r.reviewer_name || '?')[0].toUpperCase();
+      const photoHtml = r.reviewer_photo
+        ? `<img src="${r.reviewer_photo}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />`
+        : '';
+      const date = new Date(r.created_at).toLocaleDateString();
+      const actions = r.is_mine ? `
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="cc-btn cc-btn-ghost" style="font-size:12px;padding:6px 12px;height:auto;" data-edit-review="${r.id}">Edit</button>
+          <button class="cc-btn cc-btn-ghost-muted" style="font-size:12px;padding:6px 12px;height:auto;" data-delete-review="${r.id}">Delete</button>
+        </div>` : '';
+      return `
+        <div class="cc-review-card">
+          <div class="cc-review-header">
+            <div class="cc-avatar" style="width:36px;height:36px;font-size:14px;flex-shrink:0;position:relative;">${initial}${photoHtml}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:13px;">${escHtml(r.reviewer_name)}</div>
+              <div class="cc-review-meta">${escHtml(r.course_code)} · ${date}</div>
+            </div>
+            <div>${renderStarsHtml(r.rating, 14)}</div>
+          </div>
+          ${r.comment ? `<div class="cc-review-comment">${escHtml(r.comment)}</div>` : ''}
+          ${r.grade_received ? `<div class="cc-review-grade">Grade: ${escHtml(r.grade_received)}</div>` : ''}
+          ${actions}
+        </div>`;
+    }
+
+    function renderStarsHtml(avg, size = 14) {
+      const rounded = Math.round(avg);
+      let html = '';
+      for (let i = 1; i <= 5; i++) {
+        html += `<svg viewBox="0 0 24 24" fill="${i <= rounded ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" style="width:${size}px;height:${size}px;color:var(--accent);"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+      }
+      return html;
+    }
+
+    // ── Write review sheet ──
+    let writeRating = 0;
+    const writeStars = document.querySelectorAll('#writeStarPicker .cc-star');
+    const WLABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+    writeStars.forEach(s => {
+      s.addEventListener('mouseenter', () => updateWriteStars(parseInt(s.dataset.v), true));
+      s.addEventListener('mouseleave', () => updateWriteStars(writeRating));
+      s.addEventListener('click', () => { writeRating = parseInt(s.dataset.v); updateWriteStars(writeRating); });
+    });
+
+    function updateWriteStars(v, hover = false) {
+      writeStars.forEach(s => {
+        const sv = parseInt(s.dataset.v);
+        const on = hover ? sv <= v : sv <= writeRating;
+        s.classList.toggle('filled', !hover && sv <= writeRating);
+        s.classList.toggle('hovered', hover && sv <= v);
+        s.setAttribute('fill', on ? 'currentColor' : 'none');
+      });
+      document.getElementById('writeRatingLabel').textContent = hover ? WLABELS[v] : (writeRating ? WLABELS[writeRating] : '');
+    }
+
+    document.getElementById('writeComment').addEventListener('input', (e) => {
+      document.getElementById('writeCommentCount').textContent = e.target.value.length;
+    });
+
+    document.getElementById('writeSheet').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('writeSheet')) document.getElementById('writeSheet').classList.remove('open');
+    });
+
+    function openReviewSheet(prof) {
+      writeRating = 0;
+      updateWriteStars(0);
+      document.getElementById('writeCourse').value  = '';
+      document.getElementById('writeComment').value = '';
+      document.getElementById('writeGrade').value   = '';
+      document.getElementById('writeCommentCount').textContent = '0';
+      document.getElementById('writeError').classList.remove('show');
+      document.getElementById('writeSheetTitle').textContent = `Review ${prof.name}`;
+      document.getElementById('writeSheet').classList.add('open');
+    }
+
+    document.getElementById('submitWriteBtn').addEventListener('click', async () => {
+      const course  = document.getElementById('writeCourse').value.trim().toUpperCase();
+      const comment = document.getElementById('writeComment').value.trim();
+      const grade   = document.getElementById('writeGrade').value;
+      const errEl   = document.getElementById('writeError');
+      errEl.classList.remove('show');
+
+      if (!course)       { errEl.textContent = 'Course code is required.'; errEl.classList.add('show'); return; }
+      if (!writeRating)  { errEl.textContent = 'Please choose a star rating.'; errEl.classList.add('show'); return; }
+
+      document.getElementById('submitWriteBtn').disabled = true;
+      document.getElementById('submitWriteText').textContent = 'Submitting…';
+      try {
+        const res  = await fetch(`/api/professors/${profId}/reviews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ course_code: course, rating: writeRating, comment: comment || null, grade_received: grade || null }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('writeSheet').classList.remove('open');
+          showToast('Review submitted!', 'success');
+          loadProfessor(currentCourse);
+        } else {
+          errEl.textContent = data.message;
+          errEl.classList.add('show');
+        }
+      } catch (e) {
+        errEl.textContent = 'Network error. Try again.';
+        errEl.classList.add('show');
+      } finally {
+        document.getElementById('submitWriteBtn').disabled = false;
+        document.getElementById('submitWriteText').textContent = 'Submit review';
+      }
+    });
+
+    // ── Edit sheet ──
+    let editRating = 0;
+    const editStars = document.querySelectorAll('#editStarPicker .cc-star');
+    editStars.forEach(s => {
+      s.addEventListener('mouseenter', () => updateEditStars(parseInt(s.dataset.v), true));
+      s.addEventListener('mouseleave', () => updateEditStars(editRating));
+      s.addEventListener('click', () => { editRating = parseInt(s.dataset.v); updateEditStars(editRating); });
+    });
+
+    function updateEditStars(v, hover = false) {
+      editStars.forEach(s => {
+        const sv = parseInt(s.dataset.v);
+        const on = hover ? sv <= v : sv <= editRating;
+        s.classList.toggle('filled', !hover && sv <= editRating);
+        s.classList.toggle('hovered', hover && sv <= v);
+        s.setAttribute('fill', on ? 'currentColor' : 'none');
+      });
+    }
+
+    document.getElementById('editComment').addEventListener('input', (e) => {
+      document.getElementById('editCommentCount').textContent = e.target.value.length;
+    });
+
+    function openEditSheet(reviewId) {
+      const r = (profData?.reviews || []).find(rv => String(rv.id) === String(reviewId));
+      if (!r) return;
+      editRating = r.rating;
+      updateEditStars(editRating);
+      document.getElementById('editReviewId').value   = reviewId;
+      document.getElementById('editComment').value    = r.comment || '';
+      document.getElementById('editCommentCount').textContent = (r.comment || '').length;
+      document.getElementById('editGrade').value      = r.grade_received || '';
+      document.getElementById('editError').classList.remove('show');
+      document.getElementById('editSheet').classList.add('open');
+    }
+
+    document.getElementById('editSheet').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('editSheet')) document.getElementById('editSheet').classList.remove('open');
+    });
+
+    document.getElementById('saveEditBtn').addEventListener('click', async () => {
+      if (!editRating) { document.getElementById('editError').textContent = 'Choose a rating.'; document.getElementById('editError').classList.add('show'); return; }
+      const reviewId = document.getElementById('editReviewId').value;
+      document.getElementById('saveEditBtn').disabled = true;
+      document.getElementById('saveEditText').textContent = 'Saving…';
+      try {
+        const res  = await fetch(`/api/professors/${profId}/reviews/${reviewId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            rating: editRating,
+            comment: document.getElementById('editComment').value.trim() || null,
+            grade_received: document.getElementById('editGrade').value || null,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('editSheet').classList.remove('open');
+          showToast('Review updated!', 'success');
+          loadProfessor(currentCourse);
+        } else {
+          document.getElementById('editError').textContent = data.message;
+          document.getElementById('editError').classList.add('show');
+        }
+      } catch (e) {
+        document.getElementById('editError').textContent = 'Network error.';
+        document.getElementById('editError').classList.add('show');
+      } finally {
+        document.getElementById('saveEditBtn').disabled = false;
+        document.getElementById('saveEditText').textContent = 'Save changes';
+      }
+    });
+
+    async function deleteReview(reviewId) {
+      if (!confirm('Delete this review?')) return;
+      try {
+        const res = await fetch(`/api/professors/${profId}/reviews/${reviewId}`, { method: 'DELETE', credentials: 'include' });
+        const data = await res.json();
+        if (data.success) { showToast('Review deleted.'); loadProfessor(currentCourse); }
+        else showToast(data.message, 'error');
+      } catch (e) { showToast('Failed to delete.', 'error'); }
+    }
+
+    function showToast(msg, type = '') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'cc-toast no-tab' + (type ? ' ' + type : '');
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>

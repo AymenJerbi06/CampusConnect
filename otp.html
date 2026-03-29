@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="cc-page">
+    <div class="cc-page-inner no-tab">
+      <div class="cc-auth-page animate-slide-up">
+
+        <div class="cc-auth-logo">
+          <a href="/" class="cc-header-logo">
+            <div class="cc-logo-mark">CC</div>
+            <span>CampusConnect</span>
+          </a>
+        </div>
+
+        <div class="cc-progress-dots" id="progressDots">
+          <div class="cc-dot done"></div>
+          <div class="cc-dot active"></div>
+          <div class="cc-dot" id="dot3"></div>
+        </div>
+
+        <div style="margin-bottom:28px;margin-top:20px;">
+          <h1 class="cc-auth-title" id="pageTitle">Check your inbox</h1>
+          <p class="cc-auth-subtitle" id="emailDisplay">We sent a 6-digit code to your email.</p>
+        </div>
+
+        <div class="cc-error-msg" id="errorMsg"></div>
+
+        <div class="cc-otp-inputs" id="otpInputs">
+          <input type="text" inputmode="numeric" maxlength="1" class="cc-otp-digit" />
+          <input type="text" inputmode="numeric" maxlength="1" class="cc-otp-digit" />
+          <input type="text" inputmode="numeric" maxlength="1" class="cc-otp-digit" />
+          <input type="text" inputmode="numeric" maxlength="1" class="cc-otp-digit" />
+          <input type="text" inputmode="numeric" maxlength="1" class="cc-otp-digit" />
+          <input type="text" inputmode="numeric" maxlength="1" class="cc-otp-digit" />
+        </div>
+
+        <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px;">
+          <button class="cc-btn" id="verifyBtn" disabled>
+            <span id="verifyBtnText">Verify</span>
+          </button>
+          <button class="cc-btn cc-btn-ghost" id="resendBtn">
+            <span id="resendText">Resend code</span>
+          </button>
+        </div>
+
+        <div style="margin-top:16px;text-align:center;">
+          <a id="backLink" href="/signup.html" style="font-size:14px;color:var(--muted);font-weight:500;">
+            &larr; Back
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const email  = sessionStorage.getItem('cc_email') || '';
+    const uniId  = sessionStorage.getItem('cc_uni_id') || '';
+    const flow   = sessionStorage.getItem('cc_flow') || 'signup'; // 'signup' | 'login'
+
+    const isLogin = flow === 'login';
+
+    if (!email) window.location.href = isLogin ? '/login.html' : '/signup.html';
+
+    // Adjust copy and progress for login flow
+    if (isLogin) {
+      document.getElementById('pageTitle').textContent    = 'One more step';
+      document.getElementById('dot3').style.display       = 'none'; // login is 2-step
+      document.getElementById('backLink').href            = '/login.html';
+    }
+    document.getElementById('emailDisplay').textContent =
+      `We sent a 6-digit code to ${email}`;
+
+    const errorMsg  = document.getElementById('errorMsg');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const resendBtn = document.getElementById('resendBtn');
+    const digits    = Array.from(document.querySelectorAll('.cc-otp-digit'));
+
+    digits.forEach((input, idx) => {
+      input.addEventListener('input', (e) => {
+        const val = e.target.value.replace(/\D/g, '');
+        input.value = val.slice(-1);
+        if (val && idx < digits.length - 1) digits[idx + 1].focus();
+        input.classList.toggle('filled', !!input.value);
+        updateVerify();
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !input.value && idx > 0) {
+          digits[idx - 1].focus();
+          digits[idx - 1].value = '';
+          digits[idx - 1].classList.remove('filled');
+          updateVerify();
+        }
+      });
+      input.addEventListener('paste', (e) => {
+        const text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+        if (text.length === 6) {
+          e.preventDefault();
+          digits.forEach((d, i) => { d.value = text[i] || ''; d.classList.toggle('filled', !!d.value); });
+          digits[5].focus();
+          updateVerify();
+        }
+      });
+    });
+
+    function updateVerify() {
+      verifyBtn.disabled = getCode().length !== 6;
+    }
+    function getCode() { return digits.map(d => d.value).join(''); }
+
+    verifyBtn.addEventListener('click', verify);
+
+    async function verify() {
+      const code = getCode();
+      errorMsg.classList.remove('show');
+      verifyBtn.disabled = true;
+      document.getElementById('verifyBtnText').textContent = 'Verifying…';
+
+      try {
+        const endpoint = isLogin ? '/api/auth/verify-login-otp' : '/api/auth/verify-otp';
+        const res  = await fetch(endpoint, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, code }),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          sessionStorage.removeItem('cc_email');
+          sessionStorage.removeItem('cc_uni_id');
+          sessionStorage.removeItem('cc_flow');
+
+          if (isLogin) {
+            // JWT was issued — go straight to app
+            window.location.href = data.redirect || '/home.html';
+          } else if (data.needsPassword) {
+            // New user — collect password before issuing JWT
+            window.location.href = '/set-password.html';
+          } else {
+            // Existing user re-verified — redirect
+            window.location.href = data.redirect || '/home.html';
+          }
+        } else {
+          showError(data.message || 'Invalid code. Please try again.');
+          digits.forEach(d => { d.value = ''; d.classList.remove('filled'); });
+          digits[0].focus();
+        }
+      } catch (e) {
+        showError('Network error. Please try again.');
+      } finally {
+        verifyBtn.disabled = false;
+        document.getElementById('verifyBtnText').textContent = 'Verify';
+        updateVerify();
+      }
+    }
+
+    let resendCooldown = 0;
+    resendBtn.addEventListener('click', async () => {
+      if (resendCooldown > 0) return;
+      resendBtn.disabled = true;
+      document.getElementById('resendText').textContent = 'Sending…';
+      errorMsg.classList.remove('show');
+
+      try {
+        // Resend uses the same endpoint that originally sent the code
+        const endpoint = isLogin ? '/api/auth/login' : '/api/auth/send-otp';
+        const body = isLogin
+          ? null  // can't resend login OTP without password — show message instead
+          : JSON.stringify({ email, universityId: uniId });
+
+        if (isLogin) {
+          showError('To resend your login code, go back and log in again.');
+          resendBtn.disabled = false;
+          document.getElementById('resendText').textContent = 'Resend code';
+          return;
+        }
+
+        const res  = await fetch(endpoint, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body,
+        });
+        const data = await res.json();
+        if (data.success) {
+          startResendCooldown();
+        } else {
+          showError(data.message || 'Could not resend.');
+          resendBtn.disabled = false;
+          document.getElementById('resendText').textContent = 'Resend code';
+        }
+      } catch (e) {
+        showError('Network error.');
+        resendBtn.disabled = false;
+        document.getElementById('resendText').textContent = 'Resend code';
+      }
+    });
+
+    function startResendCooldown() {
+      resendCooldown = 30;
+      const iv = setInterval(() => {
+        resendCooldown--;
+        document.getElementById('resendText').textContent = `Resend in ${resendCooldown}s`;
+        if (resendCooldown <= 0) {
+          clearInterval(iv);
+          resendBtn.disabled = false;
+          document.getElementById('resendText').textContent = 'Resend code';
+        }
+      }, 1000);
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.add('show');
+    }
+
+    digits[0].focus();
+  </script>
+</body>
+</html>

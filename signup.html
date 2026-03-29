@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Join CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="cc-page">
+    <div class="cc-page-inner no-tab">
+      <div class="cc-auth-page animate-slide-up">
+
+        <!-- Back to home -->
+        <div class="cc-auth-logo">
+          <a href="/" class="cc-header-logo">
+            <img src="/2.png" alt="CampusConnect" style="height:36px;width:36px;border-radius:9px;object-fit:cover;" />
+            <span>CampusConnect</span>
+          </a>
+        </div>
+
+        <!-- Join icon -->
+        <div class="cc-auth-icon-wrap">
+          <div class="cc-auth-icon cc-auth-icon--signup">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          </div>
+          <h1 class="cc-auth-title">Join CampusConnect</h1>
+          <p class="cc-auth-subtitle">Verify your university email to get started. Free forever.</p>
+        </div>
+
+        <!-- What you get -->
+        <div class="cc-auth-benefits">
+          <div class="cc-auth-benefit">
+            <span class="cc-auth-benefit-dot"></span>
+            Find students in your major and courses
+          </div>
+          <div class="cc-auth-benefit">
+            <span class="cc-auth-benefit-dot"></span>
+            Join 60+ cultural communities on campus
+          </div>
+          <div class="cc-auth-benefit">
+            <span class="cc-auth-benefit-dot"></span>
+            Verified university emails only — safe &amp; private
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div class="cc-error-msg" id="errorMsg"></div>
+
+        <!-- Form -->
+        <div class="cc-field">
+          <label class="cc-label" for="uniSelect">Your University</label>
+          <select class="cc-select" id="uniSelect">
+            <option value="">Loading universities…</option>
+          </select>
+        </div>
+
+        <div class="cc-field">
+          <label class="cc-label" for="emailInput">University Email</label>
+          <div class="cc-input-group">
+            <input
+              type="text"
+              class="cc-input"
+              id="emailInput"
+              placeholder="yourname"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+            />
+            <span class="cc-input-suffix" id="emailSuffix">@university.ca</span>
+          </div>
+        </div>
+
+        <button class="cc-btn cc-btn--signup" id="sendBtn" disabled>
+          <span id="sendBtnText">Create my account</span>
+        </button>
+
+        <p class="cc-auth-terms">
+          By joining you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+        </p>
+
+        <div class="cc-auth-footer">
+          Already have an account? <a href="/login.html">Log in</a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const uniSelect  = document.getElementById('uniSelect');
+    const emailInput = document.getElementById('emailInput');
+    const emailSuffix = document.getElementById('emailSuffix');
+    const sendBtn    = document.getElementById('sendBtn');
+    const errorMsg   = document.getElementById('errorMsg');
+    let universities = [];
+
+    async function loadUniversities() {
+      try {
+        const res = await fetch('/api/universities');
+        universities = await res.json();
+        uniSelect.innerHTML = '<option value="">Select your university…</option>';
+        universities.forEach(u => {
+          const opt = document.createElement('option');
+          opt.value = u.id;
+          opt.textContent = u.name;
+          opt.dataset.domain = u.email_domain;
+          uniSelect.appendChild(opt);
+        });
+      } catch (e) {
+        uniSelect.innerHTML = '<option value="">Failed to load — refresh</option>';
+      }
+    }
+
+    uniSelect.addEventListener('change', () => {
+      const opt = uniSelect.options[uniSelect.selectedIndex];
+      const domain = opt.dataset.domain || 'university.ca';
+      emailSuffix.textContent = '@' + domain;
+      validateForm();
+    });
+
+    emailInput.addEventListener('input', validateForm);
+
+    function validateForm() {
+      const hasUni   = uniSelect.value !== '';
+      const hasEmail = emailInput.value.trim().length >= 2;
+      sendBtn.disabled = !(hasUni && hasEmail);
+    }
+
+    sendBtn.addEventListener('click', async () => {
+      const uniId = uniSelect.value;
+      const opt   = uniSelect.options[uniSelect.selectedIndex];
+      const domain = opt.dataset.domain;
+      const localPart = emailInput.value.trim().toLowerCase();
+      const email = localPart + '@' + domain;
+
+      errorMsg.classList.remove('show');
+      sendBtn.disabled = true;
+      document.getElementById('sendBtnText').textContent = 'Sending code…';
+
+      try {
+        const res  = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, universityId: uniId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          sessionStorage.setItem('cc_email', email);
+          sessionStorage.setItem('cc_uni_id', uniId);
+          window.location.href = '/otp.html';
+        } else {
+          showError(data.message || 'Something went wrong.');
+        }
+      } catch (e) {
+        showError('Network error. Please try again.');
+      } finally {
+        sendBtn.disabled = false;
+        document.getElementById('sendBtnText').textContent = 'Create my account';
+        validateForm();
+      }
+    });
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.add('show');
+    }
+
+    loadUniversities();
+  </script>
+</body>
+</html>

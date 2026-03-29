@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Friends — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .tab-panels > div { display: none; }
+    .tab-panels > div.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="cc-page">
+
+    <header class="cc-header">
+      <div class="cc-header-logo">
+        <div class="cc-logo-mark">CC</div>
+        <span>Friends</span>
+      </div>
+    </header>
+
+    <div class="cc-inner-tabs">
+      <button class="cc-inner-tab active" data-tab="friends">Friends</button>
+      <button class="cc-inner-tab" data-tab="requests">
+        Requests
+        <span class="cc-tab-badge" id="reqBadge" style="display:none;"></span>
+      </button>
+    </div>
+
+    <div class="cc-page-inner" style="overflow-y:auto; padding-bottom:calc(64px + 16px);">
+      <div class="tab-panels">
+
+        <!-- FRIENDS (default) -->
+        <div id="panel-friends" class="active">
+          <div id="friendsList" style="padding:8px 0;">
+            <div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">Loading…</div>
+          </div>
+        </div>
+
+        <!-- REQUESTS -->
+        <div id="panel-requests">
+          <div id="requestsList" style="padding:8px 0;">
+            <div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">Loading…</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="cc-tab-bar">
+      <a href="/home.html" class="cc-tab-item" aria-label="Explore">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <span>Explore</span>
+      </a>
+      <a href="/inbox.html" class="cc-tab-item active" aria-label="Friends">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>
+          <span class="cc-nav-badge" id="friendsBadge" style="display:none;"></span>
+        </span>
+        <span>Friends</span>
+      </a>
+      <a href="/study.html" class="cc-tab-item" aria-label="Study">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </span>
+        <span>Study</span>
+      </a>
+      <a href="/messages.html" class="cc-tab-item" aria-label="Messages">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="cc-nav-badge" id="messagesBadge" style="display:none;"></span>
+        </span>
+        <span>Messages</span>
+      </a>
+      <a href="/my-profile.html" class="cc-tab-item" aria-label="Profile">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <span>Profile</span>
+      </a>
+    </nav>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/presence.js"></script>
+  <script src="/js/badges.js"></script>
+  <script>
+    // Tab state
+    const tabs   = document.querySelectorAll('.cc-inner-tab');
+    const panels = {
+      friends:  document.getElementById('panel-friends'),
+      requests: document.getElementById('panel-requests'),
+    };
+    let loaded = { friends: false, requests: false };
+
+    function switchToTab(key) {
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === key));
+      Object.entries(panels).forEach(([k, p]) => p.classList.toggle('active', k === key));
+    }
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const key = tab.dataset.tab;
+        switchToTab(key);
+        if (key === 'friends'  && !loaded.friends)  loadFriends();
+        if (key === 'requests' && !loaded.requests) loadRequests();
+      });
+    });
+
+    (async () => {
+      const res  = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await res.json();
+      if (!data.authenticated) { window.location.href = '/'; return; }
+
+      // Load friends list (the default tab) first, then pre-fetch requests for the badge
+      await loadFriends();
+      loadRequests(); // runs in background — populates badge + pre-caches requests panel
+      refreshBadges();
+
+      // Real-time events
+      const socket = io({ withCredentials: true });
+      socket.on('friend:removed', () => {
+        loaded.friends  = false;
+        loaded.requests = false;
+        loadFriends();
+        loadRequests();
+        refreshBadges();
+      });
+      socket.on('presence:change', ({ userId, online }) => {
+        document.querySelectorAll(`[data-friend-dot="${userId}"]`).forEach(dot => {
+          dot.className = `cc-presence-dot ${online ? 'online' : 'offline'}`;
+        });
+      });
+    })();
+
+    // ── REQUESTS ──
+    async function loadRequests() {
+      loaded.requests = true;
+      const list = document.getElementById('requestsList');
+      try {
+        const res  = await fetch('/api/friends/requests', { credentials: 'include' });
+        const data = await res.json();
+
+        // Sync the inner tab badge
+        const badge = document.getElementById('reqBadge');
+        if (data.length) {
+          badge.textContent   = data.length;
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+
+        if (!data.length) {
+          list.innerHTML = emptyHtml('No pending friend requests');
+          return;
+        }
+
+        list.innerHTML = '';
+        data.forEach(r => {
+          const initial   = (r.name || '?')[0].toUpperCase();
+          const photoHtml = r.photo_url
+            ? `<img src="${r.photo_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />`
+            : '';
+          const item = document.createElement('div');
+          item.className = 'cc-friend-row';
+          item.innerHTML = `
+            <a href="/profile.html?id=${r.sender_id}" class="cc-avatar" style="position:relative;flex-shrink:0;">${initial}${photoHtml}</a>
+            <div class="cc-friend-row-info">
+              <div class="cc-friend-row-name">${escHtml(r.name || 'Student')}</div>
+              <div class="cc-friend-row-meta">${escHtml([r.major, r.year].filter(Boolean).join(' · '))}</div>
+            </div>
+            <div class="cc-friend-row-actions">
+              <button class="cc-friend-btn cc-friend-btn--accept">Accept</button>
+              <button class="cc-friend-btn cc-friend-btn--decline">Decline</button>
+            </div>
+          `;
+          item.querySelector('.cc-friend-btn--accept').addEventListener('click', async () => {
+            await fetch(`/api/friends/accept/${r.sender_id}`, { method: 'POST', credentials: 'include' });
+            loaded.requests = false;
+            loaded.friends  = false;
+            // Reload both lists, then switch to Friends tab so the new friend is visible
+            await Promise.all([loadRequests(), loadFriends()]);
+            switchToTab('friends');
+            refreshBadges();
+          });
+          item.querySelector('.cc-friend-btn--decline').addEventListener('click', async () => {
+            await fetch(`/api/friends/decline/${r.sender_id}`, { method: 'POST', credentials: 'include' });
+            loaded.requests = false;
+            await loadRequests();
+            refreshBadges();
+          });
+          list.appendChild(item);
+        });
+      } catch (e) {
+        list.innerHTML = errorHtml();
+      }
+    }
+
+    // ── FRIENDS ──
+    async function loadFriends() {
+      loaded.friends = true;
+      const list = document.getElementById('friendsList');
+      try {
+        const res  = await fetch('/api/friends', { credentials: 'include' });
+        const data = await res.json();
+
+        if (!data.length) {
+          list.innerHTML = emptyHtml('No friends yet — find students and add them!');
+          return;
+        }
+
+        list.innerHTML = '';
+        data.forEach(f => {
+          const initial   = (f.name || '?')[0].toUpperCase();
+          const photoHtml = f.photo_url
+            ? `<img src="${f.photo_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />`
+            : '';
+          // Friends always see each other's presence
+          const presenceDot = `<span class="cc-presence-dot ${f.is_online ? 'online' : 'offline'}" data-friend-dot="${f.id}"></span>`;
+          const item = document.createElement('div');
+          item.className = 'cc-friend-row';
+          item.dataset.friendId = f.id;
+          item.innerHTML = `
+            <div class="cc-avatar-wrap">
+              <a href="/profile.html?id=${f.id}" class="cc-avatar">${initial}${photoHtml}</a>
+              ${presenceDot}
+            </div>
+            <div class="cc-friend-row-info">
+              <div class="cc-friend-row-name">${escHtml(f.name || 'Student')}</div>
+              <div class="cc-friend-row-meta">${escHtml([f.major, f.year].filter(Boolean).join(' · '))}</div>
+            </div>
+            <a href="/chat.html?id=${f.id}" class="cc-friend-btn cc-friend-btn--msg">Message</a>
+          `;
+          list.appendChild(item);
+        });
+      } catch (e) {
+        list.innerHTML = errorHtml();
+      }
+    }
+
+    function emptyHtml(msg) {
+      return `<div style="padding:48px 24px;text-align:center;color:var(--muted);font-size:14px;">${msg}</div>`;
+    }
+    function errorHtml() {
+      return `<div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">Failed to load. Try refreshing.</div>`;
+    }
+    function escHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>

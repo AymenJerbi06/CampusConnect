@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Course — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="cc-page">
+
+    <!-- Header -->
+    <header class="cc-header">
+      <button class="cc-back-btn" onclick="history.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Back
+      </button>
+      <div class="cc-header-actions">
+        <a href="/my-profile.html" style="display:flex;align-items:center;">
+          <div class="cc-avatar" id="headerAvatar" style="width:32px;height:32px;font-size:13px;border-color:var(--border);">?</div>
+        </a>
+      </div>
+    </header>
+
+    <div class="cc-page-inner" style="overflow-y:auto; padding-bottom:80px;" id="pageContent">
+      <div style="padding:32px;text-align:center;color:var(--muted);">Loading…</div>
+    </div>
+
+    <!-- Toast -->
+    <div class="cc-toast no-tab" id="toast"></div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="cc-tab-bar">
+      <a href="/home.html" class="cc-tab-item" aria-label="Explore">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <span>Explore</span>
+      </a>
+      <a href="/inbox.html" class="cc-tab-item" aria-label="Friends">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>
+          <span class="cc-nav-badge" id="friendsBadge" style="display:none;"></span>
+        </span>
+        <span>Friends</span>
+      </a>
+      <a href="/study.html" class="cc-tab-item" aria-label="Study">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </span>
+        <span>Study</span>
+      </a>
+      <a href="/messages.html" class="cc-tab-item" aria-label="Messages">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="cc-nav-badge" id="messagesBadge" style="display:none;"></span>
+        </span>
+        <span>Messages</span>
+      </a>
+      <a href="/my-profile.html" class="cc-tab-item" aria-label="Profile">
+        <span class="cc-nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <span>Profile</span>
+      </a>
+    </nav>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/presence.js"></script>
+  <script src="/js/badges.js"></script>
+  <script>
+    let currentUserId = null;
+
+    // Auth guard
+    (async () => {
+      const res  = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await res.json();
+      if (!data.authenticated) { window.location.href = '/'; return; }
+      currentUserId = data.user.id;
+      refreshBadges();
+      const initial = (data.user.name || data.user.email || '?')[0].toUpperCase();
+      const av = document.getElementById('headerAvatar');
+      if (data.user.photo_url) {
+        av.innerHTML = `<img src="${data.user.photo_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;position:absolute;inset:0;" />`;
+      } else {
+        av.textContent = initial;
+      }
+    })();
+
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) window.location.href = '/home.html';
+
+    const content = document.getElementById('pageContent');
+
+    async function loadCourse() {
+      try {
+        const [courseRes, meRes] = await Promise.all([
+          fetch(`/api/courses/${id}`, { credentials: 'include' }),
+          fetch('/api/users/me', { credentials: 'include' }),
+        ]);
+        const course = await courseRes.json();
+        if (!courseRes.ok) { window.location.href = '/home.html'; return; }
+        const me     = await meRes.json();
+
+        const enrolled = (me.courses || []).some(c => c.id === course.id || String(c.id) === String(id));
+        renderPage(course, enrolled, !!course.restricted);
+      } catch (e) {
+        content.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);">Failed to load course.</div>';
+      }
+    }
+
+    function renderPage(course, enrolled, restricted = false) {
+      content.innerHTML = `
+        <!-- Course Hero -->
+        <div class="cc-detail-hero animate-slide-up">
+          <div class="cc-detail-code">${course.code}</div>
+          <div class="cc-detail-title">${course.name}</div>
+          <div class="cc-detail-info-row">
+            ${course.schedule ? `
+            <div class="cc-detail-info-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              ${course.schedule}
+            </div>` : ''}
+            ${course.room ? `
+            <div class="cc-detail-info-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
+              ${course.room}
+            </div>` : ''}
+            <div class="cc-detail-info-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              </svg>
+              ${course.student_count} student${course.student_count != 1 ? 's' : ''} enrolled
+            </div>
+            <div class="cc-detail-info-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              ${course.term}
+            </div>
+          </div>
+        </div>
+
+        <!-- Enroll bar -->
+        <div class="cc-enroll-bar">
+          <button class="cc-btn ${enrolled ? 'cc-btn-ghost' : ''}" id="enrollBtn">
+            <span id="enrollBtnText">${enrolled ? 'Unenroll from course' : 'Enroll in this course'}</span>
+          </button>
+        </div>
+
+        <!-- Students -->
+        <p class="cc-section-title">Students in this course</p>
+        <div class="cc-grid-2" id="studentsGrid"></div>
+        ${restricted ? `
+        <div style="padding:32px 24px;text-align:center;color:var(--muted);">
+          <p style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">Premium plan required</p>
+          <p style="font-size:13px;">Enroll in this course or upgrade to Premium to see classmates.</p>
+        </div>` : course.students.length === 0 ? `
+        <div style="padding:40px 24px;text-align:center;color:var(--muted);">
+          <div style="font-size:32px;margin-bottom:8px;">📚</div>
+          <p style="font-size:14px;">Be the first to enroll!</p>
+        </div>` : ''}
+      `;
+
+      renderStudents(course.students);
+
+      let isEnrolled = enrolled;
+      document.getElementById('enrollBtn').addEventListener('click', async () => {
+        const btn  = document.getElementById('enrollBtn');
+        const txt  = document.getElementById('enrollBtnText');
+        btn.disabled = true;
+        const method = isEnrolled ? 'DELETE' : 'POST';
+        txt.textContent = isEnrolled ? 'Unenrolling…' : 'Enrolling…';
+
+        try {
+          const res  = await fetch(`/api/courses/${id}/enroll`, { method, credentials: 'include' });
+          const data = await res.json();
+          if (data.success) {
+            isEnrolled = !isEnrolled;
+            btn.className = 'cc-btn ' + (isEnrolled ? 'cc-btn-ghost' : '');
+            txt.textContent = isEnrolled ? 'Unenroll from course' : 'Enroll in this course';
+            showToast(isEnrolled ? 'Enrolled successfully!' : 'Unenrolled.', isEnrolled ? 'success' : '');
+            loadCourse(); // reload to refresh student list
+          }
+        } catch (e) {
+          showToast('Something went wrong.', 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+
+    function renderStudents(students) {
+      const grid = document.getElementById('studentsGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      students.forEach(u => {
+        const card    = document.createElement('a');
+        card.href     = `/profile.html?id=${u.id}`;
+        card.className = 'cc-card cc-student-card';
+        card.dataset.userId = u.id;
+        const initial  = (u.name || '?')[0].toUpperCase();
+        const photoHtml = u.photo_url
+          ? `<img src="${u.photo_url}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />`
+          : '';
+        const gender = (u.gender && u.gender !== 'Prefer not to say') ? u.gender : '';
+        const presenceDot = (u.is_online !== null && u.is_online !== undefined)
+          ? `<span class="cc-presence-dot ${u.is_online ? 'online' : 'offline'}"></span>`
+          : '';
+        card.innerHTML = `
+          <div class="cc-avatar-wrap">
+            <div class="cc-avatar">${initial}${photoHtml}</div>
+            ${presenceDot}
+          </div>
+          <div class="cc-student-card-name">${u.name || 'Student'}</div>
+          <div class="cc-student-card-meta">${[u.major, u.year].filter(Boolean).join(' · ')}</div>
+          ${gender ? `<div class="cc-student-card-gender">${gender}</div>` : ''}
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function showToast(msg, type = '') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'cc-toast no-tab' + (type ? ' ' + type : '');
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    loadCourse();
+
+    // Real-time presence updates for visible student cards
+    try {
+      const socket = io({ withCredentials: true });
+      socket.on('presence:change', ({ userId, online }) => {
+        document.querySelectorAll(`[data-user-id="${userId}"] .cc-presence-dot`).forEach(dot => {
+          dot.className = `cc-presence-dot ${online ? 'online' : 'offline'}`;
+        });
+      });
+    } catch (e) {}
+  </script>
+</body>
+</html>

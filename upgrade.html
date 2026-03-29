@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Go Premium — CampusConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="cc-page">
+
+    <header class="cc-header">
+      <button class="cc-back-btn" onclick="history.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Back
+      </button>
+    </header>
+
+    <div class="cc-page-inner" style="overflow-y:auto;padding-bottom:40px;" id="pageContent">
+      <div style="padding:32px;text-align:center;color:var(--muted);">Loading…</div>
+    </div>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/presence.js"></script>
+  <script>
+    (async () => {
+      const res  = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await res.json();
+      if (!data.authenticated) { window.location.href = '/'; return; }
+
+      const user      = data.user;
+      const isPremium = user.plan === 'premium';
+      const content   = document.getElementById('pageContent');
+      const canceled  = new URLSearchParams(window.location.search).has('canceled');
+
+      if (isPremium) {
+        renderManage(user);
+      } else {
+        renderUpgrade(canceled);
+      }
+    })();
+
+    function renderUpgrade(showCanceled) {
+      const content = document.getElementById('pageContent');
+      content.innerHTML = `
+        <div style="max-width:480px;margin:0 auto;padding:24px 20px;">
+
+          ${showCanceled ? `<div style="background:#2a1a1a;border:1px solid #5a2a2a;border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#ff8a80;">Payment not completed. You haven't been charged.</div>` : ''}
+
+          <!-- Hero -->
+          <div style="text-align:center;padding:28px 0 24px;">
+            <div style="font-size:48px;margin-bottom:12px;">⚡</div>
+            <h1 style="font-family:var(--font-head);font-weight:900;font-size:26px;color:var(--text);margin:0 0 8px;">CampusConnect Premium</h1>
+            <p style="font-size:14px;color:var(--muted);margin:0;">Unlock the full campus experience</p>
+          </div>
+
+          <!-- Price -->
+          <div style="text-align:center;padding:20px;background:var(--surface2);border-radius:16px;border:1px solid var(--border);margin-bottom:24px;">
+            <div style="font-family:var(--font-head);font-size:42px;font-weight:900;color:var(--accent);line-height:1;">$9<span style="font-size:20px;font-weight:700;">.99</span></div>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px;">per month · cancel anytime</div>
+          </div>
+
+          <!-- Features -->
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:28px;">
+            ${[
+              ['🔍', 'Browse all majors', 'See students from every program, not just your own'],
+              ['👥', 'Browse by year', 'Find students in any year level'],
+              ['⚧', 'Browse by gender', 'Filter the explore page by gender'],
+              ['💬', 'Message anyone', 'DM any student without being friends first'],
+              ['🟢', 'See who\'s online', 'View live presence for all students, not just friends'],
+            ].map(([icon, title, desc]) => `
+              <div style="display:flex;align-items:flex-start;gap:14px;background:var(--surface2);padding:14px 16px;border-radius:12px;border:1px solid var(--border);">
+                <div style="font-size:22px;flex-shrink:0;margin-top:1px;">${icon}</div>
+                <div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;">${title}</div>
+                  <div style="font-size:12px;color:var(--muted);">${desc}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- CTA -->
+          <button class="cc-btn" id="upgradeBtn" style="width:100%;font-size:16px;padding:16px;">
+            <span id="upgradeBtnText">Upgrade Now</span>
+          </button>
+          <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px;">
+            Secure payment via Stripe. Cancel anytime from your profile.
+          </p>
+
+        </div>
+      `;
+
+      document.getElementById('upgradeBtn').addEventListener('click', async () => {
+        const btn  = document.getElementById('upgradeBtn');
+        const txt  = document.getElementById('upgradeBtnText');
+        btn.disabled = true;
+        txt.textContent = 'Redirecting…';
+
+        try {
+          const r    = await fetch('/api/billing/checkout', { method: 'POST', credentials: 'include' });
+          const data = await r.json();
+          if (data.url) {
+            window.location.href = data.url;
+          } else {
+            txt.textContent = 'Upgrade Now';
+            btn.disabled = false;
+            alert(data.message || 'Something went wrong. Try again.');
+          }
+        } catch (e) {
+          txt.textContent = 'Upgrade Now';
+          btn.disabled = false;
+          alert('Something went wrong. Try again.');
+        }
+      });
+    }
+
+    function renderManage(user) {
+      const content = document.getElementById('pageContent');
+      content.innerHTML = `
+        <div style="max-width:480px;margin:0 auto;padding:24px 20px;">
+          <div style="text-align:center;padding:32px 0 24px;">
+            <div style="font-size:48px;margin-bottom:12px;">✅</div>
+            <h1 style="font-family:var(--font-head);font-weight:900;font-size:24px;color:var(--text);margin:0 0 8px;">You're on Premium</h1>
+            <p style="font-size:14px;color:var(--muted);margin:0;">All features are unlocked.</p>
+          </div>
+          <button class="cc-btn cc-btn-ghost" id="manageBtn" style="width:100%;margin-bottom:12px;">
+            <span id="manageBtnText">Manage Subscription</span>
+          </button>
+          <p style="font-size:11px;color:var(--muted);text-align:center;">
+            Opens the Stripe Customer Portal to update billing or cancel.
+          </p>
+        </div>
+      `;
+
+      document.getElementById('manageBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('manageBtn');
+        const txt = document.getElementById('manageBtnText');
+        btn.disabled = true;
+        txt.textContent = 'Opening…';
+
+        try {
+          const r    = await fetch('/api/billing/portal', { credentials: 'include' });
+          const data = await r.json();
+          if (data.url) {
+            window.location.href = data.url;
+          } else {
+            txt.textContent = 'Manage Subscription';
+            btn.disabled = false;
+            alert(data.message || 'Something went wrong.');
+          }
+        } catch (e) {
+          txt.textContent = 'Manage Subscription';
+          btn.disabled = false;
+          alert('Something went wrong.');
+        }
+      });
+    }
+  </script>
+</body>
+</html>
