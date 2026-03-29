@@ -249,17 +249,15 @@
         <div style="height:16px;"></div>
       `;
 
-      // Inject visitors button into header for premium users
+      // Visitors button — visible to all users
       const headerActions = document.getElementById('headerActions');
-      if (isPremium) {
-        headerActions.innerHTML = `
-          <a href="/visitors.html" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;padding:6px 10px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-            </svg>
-            Visitors
-          </a>`;
-      }
+      headerActions.innerHTML = `
+        <a href="/visitors.html" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;padding:6px 10px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          Visitors
+        </a>`;
 
       document.getElementById('logoutBtn').addEventListener('click', async () => {
         document.getElementById('logoutText').textContent = 'Logging out…';

@@ -77,7 +77,6 @@
       const res  = await fetch('/api/auth/me', { credentials: 'include' });
       const data = await res.json();
       if (!data.authenticated) { window.location.href = '/'; return; }
-      if (data.user.plan !== 'premium' && data.user.plan !== 'cross_campus') { window.location.href = '/my-profile.html'; return; }
 
       refreshBadges();
       const av = document.getElementById('headerAvatar');
