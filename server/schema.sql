@@ -89,11 +89,14 @@ ALTER TABLE otp_tokens ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 's
 CREATE INDEX IF NOT EXISTS idx_users_university_major_year ON users(university_id, major, year);
 CREATE INDEX IF NOT EXISTS idx_users_plan                  ON users(plan);
 CREATE INDEX IF NOT EXISTS idx_users_deleted               ON users(deleted_at) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_friendships_user1           ON friendships(user1_id);
-CREATE INDEX IF NOT EXISTS idx_friendships_user2           ON friendships(user2_id);
-CREATE INDEX IF NOT EXISTS idx_messages_conv_created       ON messages(conversation_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_professor_reviews_created   ON professor_reviews(professor_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_otp_tokens_lookup           ON otp_tokens(email, purpose, used, expires_at);
+DO $$ BEGIN
+  CREATE INDEX IF NOT EXISTS idx_friendships_user1         ON friendships(user1_id);
+  CREATE INDEX IF NOT EXISTS idx_friendships_user2         ON friendships(user2_id);
+  CREATE INDEX IF NOT EXISTS idx_messages_conv_created     ON messages(conversation_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_professor_reviews_created ON professor_reviews(professor_id, created_at DESC);
+EXCEPTION WHEN undefined_table THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS profile_visits (
   id              SERIAL PRIMARY KEY,
