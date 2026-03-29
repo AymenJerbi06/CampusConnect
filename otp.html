@@ -136,18 +136,21 @@
         const data = await res.json();
 
         if (res.ok && data.success) {
-          sessionStorage.removeItem('cc_email');
-          sessionStorage.removeItem('cc_uni_id');
-          sessionStorage.removeItem('cc_flow');
-
           if (isLogin) {
             // JWT was issued — go straight to app
+            sessionStorage.removeItem('cc_email');
+            sessionStorage.removeItem('cc_uni_id');
+            sessionStorage.removeItem('cc_flow');
             window.location.href = data.redirect || '/home.html';
           } else if (data.needsPassword) {
-            // New user — collect password before issuing JWT
+            // New user — keep email in sessionStorage so set-password.html can use it
+            sessionStorage.removeItem('cc_flow');
             window.location.href = '/set-password.html';
           } else {
             // Existing user re-verified — redirect
+            sessionStorage.removeItem('cc_email');
+            sessionStorage.removeItem('cc_uni_id');
+            sessionStorage.removeItem('cc_flow');
             window.location.href = data.redirect || '/home.html';
           }
         } else {
