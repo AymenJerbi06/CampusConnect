@@ -114,10 +114,17 @@
           const item    = document.createElement('a');
           item.href     = `/chat.html?id=${c.other_id}`;
           item.className = 'cc-conv-item';
+          const onlineDot = c.is_online
+            ? `<span style="position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;background:#22c55e;border:2px solid var(--bg);"></span>`
+            : '';
+          const timeAgo = c.last_at ? formatTime(c.last_at) : '';
           item.innerHTML = `
-            <div class="cc-avatar" style="position:relative;flex-shrink:0;">${initial}${photoHtml}</div>
+            <div class="cc-avatar" style="position:relative;flex-shrink:0;">${initial}${photoHtml}${onlineDot}</div>
             <div class="cc-conv-info">
-              <div class="cc-conv-name" style="${unread > 0 ? 'font-weight:800;' : ''}">${escHtml(c.name || 'Student')}</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <div class="cc-conv-name" style="${unread > 0 ? 'font-weight:800;' : ''}">${escHtml(c.name || 'Student')}</div>
+                <div style="font-size:11px;color:var(--muted);flex-shrink:0;">${timeAgo}</div>
+              </div>
               <div class="cc-conv-preview" style="${unread > 0 ? 'color:var(--text);font-weight:600;' : ''}">${preview}</div>
             </div>
             ${unread > 0 ? `<span class="cc-unread-dot">${unread > 9 ? '9+' : unread}</span>` : ''}
@@ -132,6 +139,16 @@
     function escHtml(str) {
       if (!str) return '';
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function formatTime(iso) {
+      const diff = Date.now() - new Date(iso).getTime();
+      const m = Math.floor(diff / 60000);
+      if (m < 1)  return 'now';
+      if (m < 60) return `${m}m`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}h`;
+      return `${Math.floor(h / 24)}d`;
     }
   </script>
 </body>

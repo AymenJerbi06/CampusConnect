@@ -105,7 +105,7 @@
     }
 
     function renderProfile(user) {
-      const isPremium = user.plan === 'premium';
+      const isPremium = user.plan === 'premium' || user.plan === 'cross_campus';
       const initial   = (user.name || user.email || '?')[0].toUpperCase();
       const photoHtml = user.photo_url
         ? `<img src="${user.photo_url}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />`
